@@ -33,7 +33,7 @@ it('replace-redirects empty checkout to cart without presenting an actionable fo
   expect(window.history.length).toBe(historyLength);
 });
 
-it('associates inline errors and focuses the first invalid field', () => {
+it('announces invalid checkout once while associating errors and focusing the first invalid field', () => {
   seedCart(); render(<App initialEntries={['/checkout']} />);
   fireEvent.click(screen.getByRole('button', { name: 'Place demo order' }));
   const name = screen.getByLabelText('Name', { exact: true });
@@ -45,6 +45,8 @@ it('associates inline errors and focuses the first invalid field', () => {
   }
   expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('Check the highlighted fields before placing your demo order.');
+  expect(within(screen.getByRole('main')).getByText('Check the highlighted fields before placing your demo order.')).toBeVisible();
+  expect(document.querySelectorAll('[aria-live], [role="alert"], [role="status"]')).toHaveLength(1);
 });
 
 it('rejects a different card with an associated demo-mode error', () => {

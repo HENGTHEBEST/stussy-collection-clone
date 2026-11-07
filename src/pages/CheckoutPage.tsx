@@ -85,7 +85,7 @@ export function CheckoutPage() {
       </div>
       <h2 className="detail-subheading">Demo payment</h2>
       <div className="shop-toolbar">{paymentFields.map(([key, label]) => input(key, label, true))}</div>
-      {Object.keys(errors).length > 0 && <p role="alert">Check the highlighted fields before placing your demo order.</p>}
+      {Object.keys(errors).length > 0 && <p>Check the highlighted fields before placing your demo order.</p>}
       <button type="submit" disabled={submitting}>Place demo order</button>
     </form>
     <OrderSummary lines={lines} />
