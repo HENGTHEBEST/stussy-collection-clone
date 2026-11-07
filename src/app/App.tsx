@@ -8,6 +8,8 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { HomePage } from '../pages/HomePage';
 import { ShopPage } from '../pages/ShopPage';
 import { ProductPage } from '../pages/ProductPage';
+import { WishlistPage } from '../pages/WishlistPage';
+import { CartPage } from '../pages/CartPage';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { ScrollManager } from './ScrollManager';
 import '../styles/tokens.css';
@@ -17,8 +19,6 @@ import '../styles/commerce.css';
 export interface AppProps { initialEntries?: string[] }
 
 // Dedicated page implementations replace these headings in subsequent tasks.
-function WishlistPage() { return <div className="page-shell"><h1>Wishlist</h1></div>; }
-function CartPage() { return <div className="page-shell"><h1>Cart</h1></div>; }
 function CheckoutPage() { return <div className="page-shell"><h1>Checkout</h1></div>; }
 function OrderPage() { return <div className="page-shell"><h1>Order confirmation</h1></div>; }
 
