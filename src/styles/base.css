@@ -10,6 +10,7 @@ button, input:not([type='radio']):not([type='checkbox']), select { min-height: 4
 button:hover { background: var(--coral); border-color: var(--coral); }
 input { min-width: 0; padding: .75rem; color: var(--white); background: transparent; border: 1px solid var(--concrete); }
 :focus-visible { outline: 3px solid var(--coral); outline-offset: 5px; }
+main h1[tabindex='-1']:focus-visible { outline: none; }
 img { max-width: 100%; display: block; }
 .media-fallback { display: block; aspect-ratio: 1; background: #262626; border: 1px solid #555; }
 h1, h2, h3 { margin-top: 0; line-height: 1; text-transform: uppercase; }
@@ -22,7 +23,7 @@ main { padding-top: var(--header-height); min-height: 65vh; }
 .page-shell { padding: clamp(4rem, 10vw, 9rem) var(--page-gutter); }
 .site-header { position: fixed; inset: 0 0 auto; min-height: var(--header-height); z-index: 100; background: var(--black); border-bottom: 1px solid #333; display: flex; align-items: center; gap: 1.25rem; padding: .75rem var(--page-gutter); }
 .site-logo { flex-shrink: 0; }
-.site-logo img { object-fit: contain; width: 96px; height: 64px; }
+.site-logo img { object-fit: contain; width: 96px; height: 64px; filter: brightness(0) invert(1); }
 .demo-badge { display: inline-block; border: 1px solid var(--coral); color: var(--coral); padding: .35rem .5rem; font: .65rem/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
 .desktop-navigation { display: flex; align-items: center; justify-content: flex-end; gap: clamp(.75rem, 1.5vw, 1.5rem); margin-left: auto; }
 .desktop-navigation a, .mobile-navigation a { text-decoration: none; font: .75rem var(--font-mono); }
