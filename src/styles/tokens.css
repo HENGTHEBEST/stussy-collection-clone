@@ -1,0 +1,14 @@
+:root {
+  color-scheme: dark;
+  --black: #0a0a0a;
+  --white: #ffffff;
+  --concrete: #b8b4ad;
+  --coral: #ff6b6b;
+  --orange: #ff6b35;
+  --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+  --font-body: Inter, Arial, Helvetica, sans-serif;
+  --font-mono: 'Space Mono', 'Courier New', monospace;
+  --radius: 0;
+  --header-height: 96px;
+  --page-gutter: clamp(1.25rem, 4vw, 4rem);
+}
