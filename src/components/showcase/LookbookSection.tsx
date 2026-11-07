@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { products } from '../../data/products';
+import { SafeImage } from '../shared/SafeImage';
 
 export function LookbookSection() {
   return <section id="collection" className="lookbook-section" tabIndex={-1}>
@@ -11,7 +12,7 @@ export function LookbookSection() {
         initial={false} whileInView={typeof IntersectionObserver === 'undefined' ? undefined : { y: [24, 0], opacity: [.8, 1] }}
         viewport={{ once: true, margin: '-80px' }} transition={{ duration: .65 }}>
         <Link to={`/product/${product.slug}`}>
-          <img src={product.image} alt={product.name} loading="lazy" style={{ objectPosition: product.objectPosition }} />
+          <SafeImage src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} loading="lazy" style={{ objectPosition: product.objectPosition }} />
           <div className="lookbook-copy"><p className="eyebrow">{product.label}</p><h3>{product.name}</h3>
             <p>{product.description}</p><span className="lookbook-action">VIEW PRODUCT <span aria-hidden="true">↗</span></span></div>
         </Link>

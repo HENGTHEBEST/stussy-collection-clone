@@ -2,13 +2,14 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../../types/commerce';
 import { useWishlist } from '../../state/WishlistProvider';
 import { useFeedback } from '../../state/FeedbackProvider';
+import { SafeImage } from '../shared/SafeImage';
 
 export function ProductCard({ product }: { product: Product }) {
   const { has, toggle } = useWishlist(); const { announce } = useFeedback();
   const saved = has(product.id);
   return <article className="product-card">
     <Link to={`/product/${product.slug}`} aria-label={product.name}>
-      <img src={product.image} alt={product.name} loading="lazy" style={{ objectPosition: product.objectPosition }} />
+      <SafeImage src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} loading="lazy" style={{ objectPosition: product.objectPosition }} />
       <h3>{product.name}</h3>
     </Link>
     <p>Demo price: ${product.demoPrice.toFixed(2)}</p>

@@ -5,19 +5,29 @@ export function ScrollManager() {
   const { pathname, hash, key } = useLocation();
   const previousPath = useRef<string | null>(null);
   useEffect(() => {
-    if (previousPath.current !== pathname) {
+    const pathChanged = previousPath.current !== pathname;
+    if (pathChanged) {
       window.scrollTo?.({ top: 0, left: 0, behavior: 'instant' });
       previousPath.current = pathname;
     }
-    if (pathname !== '/' || !hash) return;
-    let id: string;
-    try { id = decodeURIComponent(hash.slice(1)); } catch { return; }
+    let target: HTMLElement | null = null;
+    try { if (hash) target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch { /* Malformed anchors use the page heading. */ }
+    function focus(element: HTMLElement) {
+      if (!element.hasAttribute('tabindex')) {
+        element.setAttribute('tabindex', '-1');
+        element.addEventListener('blur', () => element.removeAttribute('tabindex'), { once: true });
+      }
+      element.focus({ preventScroll: true });
+    }
+    if (!target) {
+      if (pathChanged) {
+        const heading = document.querySelector<HTMLElement>('main h1');
+        if (heading) focus(heading);
+      }
+      return;
+    }
     const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(id);
-      if (!target) return;
-      // Make non-interactive section headings focusable only programmatically.
-      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
-      target.focus({ preventScroll: true });
+      focus(target);
       target.scrollIntoView?.({ block: 'start', behavior: 'instant' });
     });
     return () => window.cancelAnimationFrame(frame);

@@ -1,6 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { useShowcaseMotion } from './CustomCursor';
+import { SafeImage } from '../shared/SafeImage';
 
 export function ManifestoSection() {
   const section = useRef<HTMLElement>(null);
@@ -9,8 +10,10 @@ export function ManifestoSection() {
   const imageY = useTransform(scrollYProgress, [0, 1], ['-6%', '6%']);
   const headingY = useTransform(scrollYProgress, [0, 1], [35, -35]);
   return <section id="escape" ref={section} className="manifesto-section" tabIndex={-1}>
-    <motion.img className="manifesto-image" src="/assets/manifesto.jpg" alt="Stussy streetwear editorial in an urban setting"
-      loading="lazy" style={enabled ? { y: imageY } : undefined} />
+    <motion.div className="manifesto-image" style={enabled ? { y: imageY } : undefined}>
+      <SafeImage className="manifesto-photo" src="/assets/manifesto.jpg" alt="Stussy streetwear editorial in an urban setting"
+        fallbackLabel="Stussy streetwear editorial in an urban setting image unavailable" loading="lazy" />
+    </motion.div>
     <div className="manifesto-shade" aria-hidden="true" />
     <img className="manifesto-watermark" src="/assets/stussy-logo.png" alt="" aria-hidden="true" loading="lazy" />
     <div className="manifesto-content"><p className="eyebrow">03 — BRAND MANIFESTO</p>

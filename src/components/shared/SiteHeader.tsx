@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../../state/CartProvider';
 import { useWishlist } from '../../state/WishlistProvider';
@@ -13,9 +13,9 @@ export function SiteHeader() {
   const menu = useRef<HTMLElement>(null);
   const close = () => { setOpen(false); trigger.current?.focus(); };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // History navigation must restore focus before the menu becomes hidden.
-    // ScrollManager can then move focus to a requested home section.
+    // ScrollManager can then focus the destination heading or requested section.
     if (open) close();
   }, [location.pathname, location.hash, location.key]);
   useEffect(() => {

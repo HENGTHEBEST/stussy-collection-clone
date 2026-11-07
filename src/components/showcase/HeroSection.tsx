@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import { useShowcaseMotion } from './CustomCursor';
+import { SafeImage } from '../shared/SafeImage';
 
 export function HeroSection() {
   const section = useRef<HTMLElement>(null);
@@ -33,12 +34,12 @@ export function HeroSection() {
   }, [enabled]);
   return <section id="hero" ref={section} className="hero-section" tabIndex={-1}>
     <div className="hero-images" ref={images}>
-      <img src="/assets/hero-man.jpg" alt="Man wearing a black Stussy script logo tee" fetchPriority="high" />
-      <img src="/assets/hero-woman.jpg" alt="Woman wearing a white Stussy Summer Classics tee" fetchPriority="high" />
+      <SafeImage src="/assets/hero-man.jpg" alt="Man wearing a black Stussy script logo tee" fallbackLabel="Man wearing a black Stussy script logo tee image unavailable" fetchPriority="high" />
+      <SafeImage src="/assets/hero-woman.jpg" alt="Woman wearing a white Stussy Summer Classics tee" fallbackLabel="Woman wearing a white Stussy Summer Classics tee image unavailable" fetchPriority="high" />
     </div>
     <div className="hero-shade" aria-hidden="true" /><div className="hero-divider" aria-hidden="true" />
     <div className="hero-content">
-      <img className="hero-logo" src="/assets/stussy-logo.png" alt="Stussy" />
+      <img className="hero-logo" src="/assets/stussy-logo.png" alt="" aria-hidden="true" />
       <p className="eyebrow hero-est">EST. 1980 — LOS ANGELES, CA USA</p>
       <h1 aria-label="Summer Classics">{'SUMMER CLASSICS'.split('').map((letter, index) =>
         <span aria-hidden="true" key={index} style={{ '--letter-index': index } as CSSProperties}>{letter === ' ' ? '\u00a0' : letter}</span>)}</h1>

@@ -5,6 +5,7 @@ import { formatCurrency } from '../components/commerce/OrderSummary';
 import { isOrderSummaryRecord, type OrderSummaryRecord } from '../lib/checkout';
 import { ORDER_STORAGE_KEY, readJson } from '../lib/storage';
 import { cartLineKey } from '../state/cartReducer';
+import { SafeImage } from '../components/shared/SafeImage';
 
 export function OrderPage() {
   const { orderId } = useParams();
@@ -31,7 +32,7 @@ export function OrderPage() {
     {order.lines.map((line) => {
       const product = products.find((item) => item.id === line.productId)!;
       return <article key={cartLineKey(line)} className="product-card product-detail">
-        <Link to={`/product/${product.slug}`}><img src={product.image} alt={product.name} /></Link>
+        <Link to={`/product/${product.slug}`}><SafeImage src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} /></Link>
         <div><h2 className="detail-subheading">{product.name}</h2><p>{line.color} / {line.size}</p>
           <p>Quantity: {line.quantity}</p><p>Unit price: {formatCurrency(line.unitPrice)}</p>
           <p>Line total: {formatCurrency(line.unitPrice * line.quantity)}</p></div>

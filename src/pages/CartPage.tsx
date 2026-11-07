@@ -6,6 +6,7 @@ import { useFeedback } from '../state/FeedbackProvider';
 import { cartLineKey, clampQuantity } from '../state/cartReducer';
 import { QuantityControl } from '../components/commerce/QuantityControl';
 import { formatCurrency, OrderSummary } from '../components/commerce/OrderSummary';
+import { SafeImage } from '../components/shared/SafeImage';
 
 export function CartPage() {
   const { lines, setQuantity, remove, clear } = useCart();
@@ -37,7 +38,7 @@ export function CartPage() {
       const key = cartLineKey(line);
       const label = `${product.name} (${line.color} / ${line.size})`;
       return <article className="product-card product-detail" key={key} aria-label={label}>
-        <Link to={`/product/${product.slug}`} aria-label={product.name}><img src={product.image} alt={product.name} /><h2 className="detail-subheading">{product.name}</h2></Link>
+        <Link to={`/product/${product.slug}`} aria-label={product.name}><SafeImage src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} /><h2 className="detail-subheading">{product.name}</h2></Link>
         <div><p>{line.color} / {line.size}</p><p>Unit price: {formatCurrency(line.unitPrice)}</p>
         <QuantityControl quantity={line.quantity} onChange={(value) => {
           const quantity = clampQuantity(value); setQuantity(key, quantity);

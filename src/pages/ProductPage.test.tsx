@@ -98,3 +98,13 @@ it('recovers from an unknown product slug', () => {
   expect(screen.getByRole('link', { name: 'Explore shop' })).toHaveAttribute('href', '/shop');
   expect(screen.getByRole('link', { name: 'Return home' })).toHaveAttribute('href', '/');
 });
+
+it('identifies a product when its detail or related image fails', () => {
+  setup();
+  const images = screen.getAllByRole('img');
+  for (const image of images) {
+    const name = image.getAttribute('alt');
+    fireEvent.error(image);
+    expect(screen.getByRole('img', { name: `${name} image unavailable` })).toBeVisible();
+  }
+});

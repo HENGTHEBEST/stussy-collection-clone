@@ -4,6 +4,7 @@ import { calculateTotals, OrderSummary } from '../components/commerce/OrderSumma
 import { createOrderSummary, isOrderSummaryRecord, validateCheckout, type CheckoutErrors, type CheckoutFields, type OrderSummaryRecord } from '../lib/checkout';
 import { ORDER_STORAGE_KEY, readJson, writeJson } from '../lib/storage';
 import { useCart } from '../state/CartProvider';
+import { useFeedback } from '../state/FeedbackProvider';
 
 const initialFields: CheckoutFields = {
   name: '', email: '', phone: '', street: '', city: '', region: '', postalCode: '', country: '',
@@ -19,6 +20,7 @@ const paymentFields = [
 
 export function CheckoutPage() {
   const { lines, clear } = useCart();
+  const { announce } = useFeedback();
   const navigate = useNavigate();
   const [fields, setFields] = useState<CheckoutFields>(initialFields);
   const [errors, setErrors] = useState<CheckoutErrors>({});
@@ -35,13 +37,17 @@ export function CheckoutPage() {
     const nextErrors = validateCheckout(fields);
     setErrors(nextErrors);
     const firstError = (Object.keys(initialFields) as (keyof CheckoutFields)[]).find((key) => nextErrors[key]);
-    if (firstError) { form.current?.querySelector<HTMLElement>(`#checkout-${firstError}`)?.focus(); return; }
+    if (firstError) {
+      announce('Check the highlighted fields before placing your demo order.');
+      form.current?.querySelector<HTMLElement>(`#checkout-${firstError}`)?.focus(); return;
+    }
     submitted.current = true;
     setSubmitting(true);
     const order = createOrderSummary(fields, lines, calculateTotals(lines));
     writeJson(ORDER_STORAGE_KEY, order);
     const saved = readJson<OrderSummaryRecord | null>(ORDER_STORAGE_KEY, isOrderSummaryRecord, null);
     clear();
+    announce('Demo order placed. No payment was sent.');
     navigate(`/order/${order.orderId}`, { replace: true, state: saved?.orderId === order.orderId ? null : { order } });
   }
 

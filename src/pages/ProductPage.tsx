@@ -8,6 +8,7 @@ import { VariantSelector } from '../components/commerce/VariantSelector';
 import { useCart } from '../state/CartProvider';
 import { useWishlist } from '../state/WishlistProvider';
 import { useFeedback } from '../state/FeedbackProvider';
+import { SafeImage } from '../components/shared/SafeImage';
 
 export function ProductPage() {
   const { slug = '' } = useParams(); const product = findProductBySlug(slug);
@@ -22,7 +23,7 @@ function ProductDetails({ product }: { product: Product }) {
   const saved = has(product.id);
   return <div className="page-shell commerce-page">
     <nav aria-label="Breadcrumb" className="breadcrumb"><Link to="/">Home</Link> / <Link to="/shop">Shop</Link> / <span>{product.name}</span></nav>
-    <section aria-label="Product details" className="product-detail"><img className="product-image" src={product.image} alt={product.name} style={{ objectPosition: product.objectPosition }} />
+    <section aria-label="Product details" className="product-detail"><SafeImage className="product-image" src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} style={{ objectPosition: product.objectPosition }} />
       <div><p className="eyebrow">{product.label}</p><h1>{product.name}</h1><p>{product.description}</p>
         <p>Demo price: ${product.demoPrice.toFixed(2)}</p><p>Demo availability: {product.available ? 'Available' : 'Unavailable'}</p>
         <p>Illustrative variants and pricing; no live inventory or purchases.</p>

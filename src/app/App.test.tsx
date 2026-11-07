@@ -46,6 +46,36 @@ it.each([
   expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
 });
 
+it.each(['/shop', '/wishlist', '/product/8-ball-tee-black', '/missing', '/#missing', '/#%E0%A4%A'])('focuses the destination heading without a usable hash at %s', async (path) => {
+  render(<App initialEntries={[path]} />);
+  await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
+});
+
+it('keeps search focus during query-only navigation', async () => {
+  render(<App initialEntries={['/shop']} />);
+  await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveFocus());
+  const search = screen.getByRole('searchbox');
+  await userEvent.type(search, '8-ball');
+  expect(search).toHaveFocus();
+  expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('tabindex');
+});
+
+it('recovers every meaningful showcase image and hides decorative branding', () => {
+  render(<App initialEntries={['/']} />);
+  const images = [...document.querySelectorAll<HTMLImageElement>('main img')];
+  for (const image of images) {
+    if (image.src.endsWith('stussy-logo.png')) {
+      expect(image).toHaveAttribute('alt', '');
+      expect(image).toHaveAttribute('aria-hidden', 'true');
+    } else {
+      const alt = image.alt;
+      fireEvent.error(image);
+      expect(screen.getAllByRole('img', { name: `${alt} image unavailable` }).length).toBeGreaterThan(0);
+      expect(image).not.toBeInTheDocument();
+    }
+  }
+});
+
 it('exposes shell navigation and persisted provider counts', async () => {
   localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify({ version: 1, value: [1, 2] }));
   localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ version: 1, value: { lines: [
@@ -73,7 +103,7 @@ it('focuses a home hash target after cross-route navigation', async () => {
   expect(screen.getByRole('heading', { name: 'Summer Classics' })).toBeInTheDocument();
 });
 
-it('restores menu trigger focus when browser history changes the route', async () => {
+it('closes the menu and focuses destination headings on Back and Forward', async () => {
   window.history.replaceState(null, '', '/shop');
   window.history.pushState(null, '', '/cart');
   const user = userEvent.setup();
@@ -88,7 +118,13 @@ it('restores menu trigger focus when browser history changes the route', async (
   });
   expect(screen.getByRole('heading', { name: 'Shop', level: 1 })).toBeInTheDocument();
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
-  expect(trigger).toHaveFocus();
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Shop', level: 1 })).toHaveFocus());
+  await act(async () => {
+    const changed = new Promise<void>((resolve) => window.addEventListener('popstate', () => resolve(), { once: true }));
+    window.history.forward();
+    await changed;
+  });
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Cart', level: 1 })).toHaveFocus());
   window.history.replaceState(null, '', '/');
 });
 
@@ -127,6 +163,7 @@ it('manages mobile menu focus, Escape, and original scroll locking', async () =>
   await user.click(trigger);
   await user.click(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('link', { name: 'Shop' }));
   expect(screen.getByRole('heading', { name: 'Shop', level: 1 })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Shop', level: 1 })).toHaveFocus());
   expect(trigger).toHaveAttribute('aria-expanded', 'false');
   expect(document.body.style.overflow).toBe('auto');
 });

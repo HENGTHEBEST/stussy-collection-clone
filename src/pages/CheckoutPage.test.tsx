@@ -44,6 +44,7 @@ it('associates inline errors and focuses the first invalid field', () => {
     expect(field).toHaveAccessibleDescription('This field is required.');
   }
   expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
+  expect(screen.getByRole('status')).toHaveTextContent('Check the highlighted fields before placing your demo order.');
 });
 
 it('rejects a different card with an associated demo-mode error', () => {
@@ -74,6 +75,7 @@ it('creates one non-personal stored summary, clears cart, and replace-navigates 
   const form = screen.getByRole('button', { name: 'Place demo order' }).closest('form')!;
   act(() => { fireEvent.submit(form); fireEvent.submit(form); });
   expect(screen.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('Demo order placed. No payment was sent.');
   expect(randomUUID).toHaveBeenCalledTimes(1);
   const stored = JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY)!);
   expect(stored).toMatchObject({ version: 1, value: { ...order, orderId: expect.stringMatching(/^DEMO-[0-9A-F]{8}$/), createdAt: expect.any(String) } });
@@ -106,6 +108,8 @@ it('restores the latest matching order with captured prices, local product media
   expect(main.getByText('Standard demo delivery')).toBeVisible();
   expect(main.getByText(/no payment was sent/i)).toBeVisible();
   expect(main.getByText(order.createdAt)).toHaveAttribute('datetime', order.createdAt);
+  fireEvent.error(main.getByRole('img', { name: products[0].name }));
+  expect(main.getByRole('img', { name: `${products[0].name} image unavailable` })).toBeVisible();
 });
 
 it.each([

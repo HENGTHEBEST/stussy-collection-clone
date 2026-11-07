@@ -102,6 +102,12 @@ it('restores scroll on dialog unmount', async () => {
   view.unmount(); expect(document.body.style.overflow).toBe('scroll');
 });
 
+it('identifies a cart product when its image fails', () => {
+  setup();
+  fireEvent.error(screen.getByAltText(products[0].name));
+  expect(screen.getByRole('img', { name: `${products[0].name} image unavailable` })).toBeVisible();
+});
+
 it('renders persisted wishlist in saved order with separate card controls, removes and clears', async () => {
   localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify({ version: 1, value: [2, 1] }));
   setup([], true);
