@@ -28,6 +28,27 @@ it('requires a size with associated error and focus, then adds the selected vari
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([{ productId: 1, size: 'M', color: 'Black', quantity: 2, unitPrice: 48 }]);
 });
 
+it('reports actual additions at partial capacity and a limit message when the selected variant is full', async () => {
+  setup();
+  await userEvent.click(screen.getByRole('radio', { name: /^M$/ }));
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '9' } });
+  const add = screen.getByRole('button', { name: 'Add to cart' });
+  await userEvent.click(add);
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
+  await userEvent.click(add);
+  expect(screen.getByLabelText('Cart count')).toHaveTextContent(/^10$/);
+  expect(screen.getByRole('status')).toHaveTextContent('Added 1 ');
+  expect(screen.getByText(/Added 1 /, { selector: '.product-feedback' })).toBeVisible();
+  await userEvent.click(add);
+  expect(screen.getByLabelText('Cart count')).toHaveTextContent(/^10$/);
+  expect(screen.getByRole('status')).toHaveTextContent('Quantity limit reached: 10 per variant.');
+  expect(screen.getByText('Quantity limit reached: 10 per variant.', { selector: '.product-feedback' })).toBeVisible();
+  await userEvent.click(screen.getByRole('radio', { name: /^L$/ }));
+  await userEvent.click(add);
+  expect(screen.getByLabelText('Cart count')).toHaveTextContent(/^12$/);
+  expect(screen.getByRole('status')).toHaveTextContent('Added 2 ');
+});
+
 it('clamps numeric input and step controls to quantities 1 through 10', async () => {
   setup(); const quantity = screen.getByLabelText('Quantity');
   await userEvent.click(screen.getByRole('button', { name: 'Decrease quantity' })); expect(quantity).toHaveValue(1);

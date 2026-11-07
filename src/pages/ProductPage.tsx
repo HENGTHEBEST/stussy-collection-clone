@@ -18,7 +18,7 @@ function ProductDetails({ product }: { product: Product }) {
   const [size, setSize] = useState<ProductSize | ''>(''); const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(''); const [message, setMessage] = useState('');
   const sizeRef = useRef<HTMLDivElement>(null);
-  const { add } = useCart(); const { has, toggle } = useWishlist(); const { announce } = useFeedback();
+  const { add, lines } = useCart(); const { has, toggle } = useWishlist(); const { announce } = useFeedback();
   const saved = has(product.id);
   return <div className="page-shell commerce-page">
     <nav aria-label="Breadcrumb" className="breadcrumb"><Link to="/">Home</Link> / <Link to="/shop">Shop</Link> / <span>{product.name}</span></nav>
@@ -31,8 +31,11 @@ function ProductDetails({ product }: { product: Product }) {
         <div className="action-row"><button disabled={!product.available} onClick={() => {
           if (!product.available) return;
           if (!size) { setError('Choose a size before adding to cart.'); setMessage(''); sizeRef.current?.focus(); return; }
-          add({ productId: product.id, size, color: product.color, quantity, unitPrice: product.demoPrice });
-          const confirmation = `Added ${quantity} ${product.name} to the demo cart.`; setMessage(confirmation); announce(confirmation);
+          const existing = lines.find((line) => line.productId === product.id && line.size === size && line.color === product.color);
+          const addedQuantity = Math.min(quantity, 10 - (existing?.quantity ?? 0));
+          if (addedQuantity > 0) add({ productId: product.id, size, color: product.color, quantity: addedQuantity, unitPrice: product.demoPrice });
+          const confirmation = addedQuantity > 0 ? `Added ${addedQuantity} ${product.name} to the demo cart.` : 'Quantity limit reached: 10 per variant.';
+          setMessage(confirmation); announce(confirmation);
         }}>{product.available ? 'Add to cart' : 'Unavailable'}</button>
           <button aria-pressed={saved} aria-label={saved ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`} onClick={() => {
             toggle(product.id); const confirmation = `${saved ? 'Removed from' : 'Added to'} wishlist: ${product.name}`; setMessage(confirmation); announce(confirmation);
