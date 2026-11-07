@@ -6,16 +6,17 @@ import { SiteHeader } from '../components/shared/SiteHeader';
 import { SiteFooter } from '../components/shared/SiteFooter';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { HomePage } from '../pages/HomePage';
+import { ShopPage } from '../pages/ShopPage';
+import { ProductPage } from '../pages/ProductPage';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { ScrollManager } from './ScrollManager';
 import '../styles/tokens.css';
 import '../styles/base.css';
+import '../styles/commerce.css';
 
 export interface AppProps { initialEntries?: string[] }
 
 // Dedicated page implementations replace these headings in subsequent tasks.
-function ShopPage() { return <div className="page-shell"><h1>Shop</h1></div>; }
-function ProductPage() { return <div className="page-shell"><h1>Product</h1></div>; }
 function WishlistPage() { return <div className="page-shell"><h1>Wishlist</h1></div>; }
 function CartPage() { return <div className="page-shell"><h1>Cart</h1></div>; }
 function CheckoutPage() { return <div className="page-shell"><h1>Checkout</h1></div>; }

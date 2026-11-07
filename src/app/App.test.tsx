@@ -38,7 +38,7 @@ it('composes the complete showcase with local media and all thirteen product act
 
 it.each([
   ['/', 'Summer Classics'], ['/shop', 'Shop'], ['/cart', 'Cart'],
-  ['/wishlist', 'Wishlist'], ['/product/8-ball', 'Product'],
+  ['/wishlist', 'Wishlist'], ['/product/8-ball', 'Product not found'],
   ['/checkout', 'Checkout'], ['/order/DEMO-123', 'Order confirmation'],
   ['/missing', 'Page not found'],
 ])('renders the registered %s route', (path, heading) => {
