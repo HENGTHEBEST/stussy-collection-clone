@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { App } from './App';
@@ -43,6 +43,25 @@ it('focuses a home hash target after cross-route navigation', async () => {
   await user.click(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('link', { name: 'Contact' }));
   await waitFor(() => expect(screen.getByRole('contentinfo')).toHaveFocus());
   expect(screen.getByRole('heading', { name: 'Summer Classics' })).toBeInTheDocument();
+});
+
+it('restores menu trigger focus when browser history changes the route', async () => {
+  window.history.replaceState(null, '', '/shop');
+  window.history.pushState(null, '', '/cart');
+  const user = userEvent.setup();
+  render(<App />);
+  const trigger = screen.getByRole('button', { name: 'Menu' });
+  await user.click(trigger);
+  expect(within(screen.getByRole('navigation', { name: 'Mobile navigation' })).getByRole('link', { name: 'Home' })).toHaveFocus();
+  await act(async () => {
+    const changed = new Promise<void>((resolve) => window.addEventListener('popstate', () => resolve(), { once: true }));
+    window.history.back();
+    await changed;
+  });
+  expect(screen.getByRole('heading', { name: 'Shop', level: 1 })).toBeInTheDocument();
+  expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  expect(trigger).toHaveFocus();
+  window.history.replaceState(null, '', '/');
 });
 
 it('contains rendering failures with recovery actions outside the router', () => {

@@ -13,7 +13,11 @@ export function SiteHeader() {
   const menu = useRef<HTMLElement>(null);
   const close = () => { setOpen(false); trigger.current?.focus(); };
 
-  useEffect(() => { setOpen(false); }, [location.pathname, location.hash, location.key]);
+  useEffect(() => {
+    // History navigation must restore focus before the menu becomes hidden.
+    // ScrollManager can then move focus to a requested home section.
+    if (open) close();
+  }, [location.pathname, location.hash, location.key]);
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
