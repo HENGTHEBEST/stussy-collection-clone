@@ -10,6 +10,8 @@ import { ShopPage } from '../pages/ShopPage';
 import { ProductPage } from '../pages/ProductPage';
 import { WishlistPage } from '../pages/WishlistPage';
 import { CartPage } from '../pages/CartPage';
+import { CheckoutPage } from '../pages/CheckoutPage';
+import { OrderPage } from '../pages/OrderPage';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { ScrollManager } from './ScrollManager';
 import '../styles/tokens.css';
@@ -17,10 +19,6 @@ import '../styles/base.css';
 import '../styles/commerce.css';
 
 export interface AppProps { initialEntries?: string[] }
-
-// Dedicated page implementations replace these headings in subsequent tasks.
-function CheckoutPage() { return <div className="page-shell"><h1>Checkout</h1></div>; }
-function OrderPage() { return <div className="page-shell"><h1>Order confirmation</h1></div>; }
 
 export function App({ initialEntries }: AppProps) {
   const shell = <FeedbackProvider><WishlistProvider><CartProvider>

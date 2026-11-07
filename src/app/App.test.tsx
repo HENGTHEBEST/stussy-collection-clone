@@ -39,7 +39,7 @@ it('composes the complete showcase with local media and all thirteen product act
 it.each([
   ['/', 'Summer Classics'], ['/shop', 'Shop'], ['/cart', 'Cart'],
   ['/wishlist', 'Wishlist'], ['/product/8-ball', 'Product not found'],
-  ['/checkout', 'Checkout'], ['/order/DEMO-123', 'Order confirmation'],
+  ['/checkout', 'Cart'], ['/order/DEMO-123', 'Order not available'],
   ['/missing', 'Page not found'],
 ])('renders the registered %s route', (path, heading) => {
   render(<App initialEntries={[path]} />);
