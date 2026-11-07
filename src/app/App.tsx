@@ -5,6 +5,7 @@ import { CartProvider } from '../state/CartProvider';
 import { SiteHeader } from '../components/shared/SiteHeader';
 import { SiteFooter } from '../components/shared/SiteFooter';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { HomePage } from '../pages/HomePage';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { ScrollManager } from './ScrollManager';
 import '../styles/tokens.css';
@@ -13,7 +14,6 @@ import '../styles/base.css';
 export interface AppProps { initialEntries?: string[] }
 
 // Dedicated page implementations replace these headings in subsequent tasks.
-function HomePage() { return <div id="hero" className="page-shell" tabIndex={-1}><h1>Summer Classics</h1></div>; }
 function ShopPage() { return <div className="page-shell"><h1>Shop</h1></div>; }
 function ProductPage() { return <div className="page-shell"><h1>Product</h1></div>; }
 function WishlistPage() { return <div className="page-shell"><h1>Wishlist</h1></div>; }

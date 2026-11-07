@@ -4,9 +4,37 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { App } from './App';
 import { CART_STORAGE_KEY, WISHLIST_STORAGE_KEY } from '../lib/storage';
 import { AppErrorBoundary } from './AppErrorBoundary';
+import { products } from '../data/products';
 
 beforeEach(() => { localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); document.body.style.overflow = ''; });
+
+it('composes the complete showcase with local media and all thirteen product actions in catalog order', () => {
+  render(<App initialEntries={['/']} />);
+  for (const name of ['Summer Classics', 'The Lookbook', 'Escape', 'The Motifs', 'Born on the Board']) {
+    expect(screen.getByRole('heading', { name })).toBeVisible();
+  }
+  const sections = ['hero', 'collection', 'escape', 'motifs', 'about', 'contact'];
+  expect([...document.querySelectorAll('section[id], footer[id]')].map((node) => node.id)).toEqual(sections);
+  expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
+  const cards = within(document.getElementById('collection')!).getAllByRole('link');
+  expect(cards).toHaveLength(13);
+  expect(cards.map((card) => card.getAttribute('href'))).toEqual(products.map((product) => `/product/${product.slug}`));
+  for (const [index, product] of products.entries()) {
+    expect(cards[index]).toHaveAccessibleName(new RegExp(product.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    expect(cards[index]).toHaveTextContent(product.label);
+    expect(cards[index]).toHaveTextContent(product.description);
+    expect(within(cards[index]).getByRole('img')).toHaveAttribute('src', product.image);
+  }
+  const images = [...document.querySelectorAll('main img')];
+  expect(images.every((image) => image.getAttribute('src')?.startsWith('/assets/'))).toBe(true);
+  for (const path of ['hero-man.jpg', 'hero-woman.jpg', 'stussy-logo.png', 'manifesto.jpg', 'motif-dice.png', 'motif-8-ball.jpg', 'lookbook-8-ball-black.jpg']) {
+    expect(document.querySelector(`main img[src="/assets/${path}"]`)).toBeInTheDocument();
+  }
+  for (const year of ['1980', '1991', '2001', '2026']) expect(within(document.getElementById('about')!).getByText(year)).toBeVisible();
+  expect(screen.getByText('04 — ABOUT US')).toBeVisible();
+  expect(screen.getByText('04 — GRAPHIC HERITAGE')).toBeVisible();
+});
 
 it.each([
   ['/', 'Summer Classics'], ['/shop', 'Shop'], ['/cart', 'Cart'],
