@@ -22,33 +22,26 @@ it.each([[false, false], [true, true], [false, true]])('omits cursor when fine=%
   expect(container).toBeEmptyDOMElement();
 });
 
-it('throttles pointer updates, caps trails, expires them, and releases pending work on unmount', () => {
+it('renders only a white-outline ring, throttles movement, and releases pending work on unmount', () => {
   capabilities(true, false);
-  vi.useFakeTimers();
   const frames = new Map<number, FrameRequestCallback>();
   let nextFrame = 0;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++nextFrame, callback); return nextFrame; });
   vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
   const flush = () => act(() => { const current = [...frames.values()]; frames.clear(); current.forEach((callback) => callback(0)); });
   const { container, unmount } = render(<CustomCursor />);
-  expect(container.querySelector('.cursor-dot')).toHaveAttribute('aria-hidden', 'true');
   expect(container.querySelector('.cursor-ring')).toHaveAttribute('aria-hidden', 'true');
+  expect(container.querySelector('.cursor-dot')).not.toBeInTheDocument();
+  expect(container.querySelector('.cursor-trail')).not.toBeInTheDocument();
   fireEvent.pointerMove(window, { clientX: 10, clientY: 20 });
   fireEvent.pointerMove(window, { clientX: 30, clientY: 40 });
   expect(frames.size).toBe(1);
   flush();
-  expect(container.querySelectorAll('.cursor-trail')).toHaveLength(1);
-  for (let i = 0; i < 30; i++) { fireEvent.pointerMove(window, { clientX: i * 10, clientY: i }); flush(); }
-  expect(container.querySelectorAll('.cursor-trail')).toHaveLength(24);
-  act(() => vi.advanceTimersByTime(1200));
-  expect(container.querySelectorAll('.cursor-trail')).toHaveLength(0);
-  fireEvent.pointerMove(window, { clientX: 80, clientY: 90 });
-  flush();
-  expect(vi.getTimerCount()).toBe(1);
+  expect(container.querySelector('.cursor-ring')).toHaveStyle({ transform: 'translate3d(30px, 40px, 0)' });
+  expect(container.querySelector('.custom-cursor')).toHaveClass('cursor-active');
   fireEvent.pointerMove(window, { clientX: 90, clientY: 100 });
   unmount();
   expect(frames.size).toBe(0);
-  expect(vi.getTimerCount()).toBe(0);
   fireEvent.pointerMove(window, { clientX: 90, clientY: 100 });
   expect(frames.size).toBe(0);
 });
@@ -56,7 +49,7 @@ it('throttles pointer updates, caps trails, expires them, and releases pending w
 it('removes cursor immediately when motion preference changes', () => {
   const queries = capabilities(true, false);
   const { container } = render(<CustomCursor />);
-  expect(container.querySelector('.cursor-dot')).toBeInTheDocument();
+  expect(container.querySelector('.cursor-ring')).toBeInTheDocument();
   const reduced = queries.get('(prefers-reduced-motion: reduce)')!;
   act(() => { Object.defineProperty(reduced, 'matches', { value: true }); reduced.dispatchEvent(new Event('change')); });
   expect(container).toBeEmptyDOMElement();

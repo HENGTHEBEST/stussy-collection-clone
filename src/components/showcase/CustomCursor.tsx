@@ -25,31 +25,14 @@ export function CustomCursor() {
   useEffect(() => {
     if (!enabled || !layer.current) return;
     const root = layer.current;
-    const dot = root.querySelector<HTMLElement>('.cursor-dot')!;
     const ring = root.querySelector<HTMLElement>('.cursor-ring')!;
-    const trails = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
     let frame = 0;
     let x = 0;
     let y = 0;
-    function removeTrail(node: HTMLElement) {
-      clearTimeout(trails.get(node));
-      trails.delete(node);
-      node.remove();
-    }
     function paint() {
       frame = 0;
-      dot.style.transform = ring.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      ring.style.transform = `translate3d(${x}px, ${y}px, 0)`;
       root.classList.add('cursor-active');
-      if (trails.size >= 24) removeTrail(trails.keys().next().value!);
-      const trail = document.createElement('img');
-      trail.src = '/assets/stussy-logo.png';
-      trail.alt = '';
-      trail.className = 'cursor-trail';
-      trail.setAttribute('aria-hidden', 'true');
-      trail.style.left = `${x}px`;
-      trail.style.top = `${y}px`;
-      root.append(trail);
-      trails.set(trail, setTimeout(() => removeTrail(trail), 1200));
     }
     function move(event: PointerEvent) {
       if (event.pointerType === 'touch') return;
@@ -67,11 +50,10 @@ export function CustomCursor() {
       window.removeEventListener('blur', hide);
       document.removeEventListener('keydown', hide);
       cancelAnimationFrame(frame);
-      [...trails.keys()].forEach(removeTrail);
     };
   }, [enabled]);
   if (!enabled) return null;
   return <div className="custom-cursor" ref={layer} aria-hidden="true">
-    <div className="cursor-dot" aria-hidden="true" /><div className="cursor-ring" aria-hidden="true" />
+    <div className="cursor-ring" aria-hidden="true" />
   </div>;
 }

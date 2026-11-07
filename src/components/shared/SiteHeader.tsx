@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import { Link, useLocation } from 'react-router-dom';
 import { useCart } from '../../state/CartProvider';
 import { useWishlist } from '../../state/WishlistProvider';
-import { DemoBadge } from './DemoBadge';
 
 export function SiteHeader() {
   const { itemCount } = useCart();
@@ -55,7 +54,6 @@ export function SiteHeader() {
       <Link className="site-logo" to="/" aria-label="Stussy Collection home">
         <img src="/assets/stussy-logo.png" alt="" aria-hidden="true" width="96" height="64" />
       </Link>
-      <DemoBadge />
       <nav className="desktop-navigation" aria-label="Primary navigation">
         {links.map(([label, to]) => <Link key={to} to={to}>{label}</Link>)}
       </nav>

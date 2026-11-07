@@ -97,6 +97,12 @@ it('exposes shell navigation and persisted provider counts', async () => {
   expect(screen.getAllByRole('status')).toHaveLength(1);
 });
 
+it('removes the unofficial demo badge while retaining an honest independent showcase label', () => {
+  render(<App initialEntries={['/']} />);
+  expect(screen.queryAllByText(/unofficial demo store/i)).toHaveLength(0);
+  expect(screen.getByText('Independent collection showcase')).toBeVisible();
+});
+
 it('focuses a home hash target after cross-route navigation', async () => {
   const user = userEvent.setup();
   render(<App initialEntries={['/shop']} />);

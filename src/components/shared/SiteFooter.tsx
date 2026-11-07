@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { useFeedback } from '../../state/FeedbackProvider';
-import { DemoBadge } from './DemoBadge';
 import { Feedback } from './Feedback';
 
 export function SiteFooter() {
@@ -24,8 +23,8 @@ export function SiteFooter() {
   }
   return <footer id="contact" className="site-footer" tabIndex={-1}>
     <div className="footer-grid">
-      <div><h2>Stay connected</h2><p>Stussy Collection</p><DemoBadge />
-        <p>A showcase and simulated shopping experience. No orders are fulfilled.</p>
+      <div><h2>Stay connected</h2><p>Stussy Collection</p>
+        <p>Independent collection showcase</p>
       </div>
       <div><h3>Social</h3><ul className="social-list">
         <li><span aria-disabled="true">Instagram</span></li>
@@ -44,6 +43,6 @@ export function SiteFooter() {
         </form>
       </div>
     </div>
-    <p className="footer-legal">© {new Date().getFullYear()} Stussy Collection demo. An unofficial recreation.</p>
+    <p className="footer-legal">© {new Date().getFullYear()} Stussy Collection — Independent showcase.</p>
   </footer>;
 }
