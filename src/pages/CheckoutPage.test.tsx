@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { App } from '../app/App';
 import { CART_STORAGE_KEY, ORDER_STORAGE_KEY } from '../lib/storage';
@@ -57,6 +58,59 @@ it('rejects a different card with an associated demo-mode error', () => {
   expect(card).toHaveFocus();
   expect(card).toHaveAccessibleDescription('Use the documented demo card number.');
   expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
+});
+
+it('formats numeric expiry typing for a valid demo order without persisting payment data', async () => {
+  const user = userEvent.setup();
+  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  const expiry = screen.getByLabelText('Expiry (MM/YY)');
+  await user.clear(expiry);
+  await user.type(expiry, '1299');
+  expect(expiry).toHaveValue('12/99');
+  expect(expiry).toHaveAttribute('inputmode', 'numeric');
+  await user.click(screen.getByRole('button', { name: 'Place demo order' }));
+  expect(screen.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
+  expect(JSON.stringify(localStorage)).not.toContain('12/99');
+});
+
+it('formats pasted expiry and lets backspace cross the automatic separator', async () => {
+  const user = userEvent.setup();
+  seedCart(); render(<App initialEntries={['/checkout']} />);
+  const expiry = screen.getByLabelText('Expiry (MM/YY)');
+  await user.click(expiry);
+  await user.paste('1299');
+  expect(expiry).toHaveValue('12/99');
+  await user.keyboard('{Backspace}{Backspace}{Backspace}');
+  expect(expiry).toHaveValue('1');
+  await user.type(expiry, '299');
+  expect(expiry).toHaveValue('12/99');
+  await user.clear(expiry);
+  await user.paste('12/99');
+  expect(expiry).toHaveValue('12/99');
+});
+
+it.each(['1399', '129', '12/999', 'ab12/99'])('rejects malformed expiry input %s', async (value) => {
+  const user = userEvent.setup();
+  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  const expiry = screen.getByLabelText('Expiry (MM/YY)');
+  await user.clear(expiry);
+  await user.click(expiry);
+  await user.paste(value);
+  await user.click(screen.getByRole('button', { name: 'Place demo order' }));
+  expect(expiry).toHaveFocus();
+  expect(expiry).toHaveAccessibleDescription('Enter expiry as MM/YY.');
+  expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
+});
+
+it('lets backspace at the expiry separator edit the month without getting stuck', async () => {
+  const user = userEvent.setup();
+  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  const expiry = screen.getByLabelText('Expiry (MM/YY)');
+  await user.click(expiry);
+  await user.keyboard('{Home}{ArrowRight}{ArrowRight}{ArrowRight}{Backspace}');
+  expect(expiry).toHaveValue('1/39');
+  await user.keyboard('2');
+  expect(expiry).toHaveValue('12/39');
 });
 
 it('creates one non-personal stored summary, clears cart, and replace-navigates to confirmation', () => {

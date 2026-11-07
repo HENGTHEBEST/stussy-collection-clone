@@ -11,8 +11,15 @@ describe('cartReducer', () => {
   });
   it('keeps different sizes and colors distinct', () => {
     let state = cartReducer({ lines: [line] }, { type: 'add', line: { ...line, size: 'L' } });
-    state = cartReducer(state, { type: 'add', line: { ...line, color: 'White' } });
+    state = cartReducer(state, { type: 'add', line: { ...line, productId: 2, color: 'White' } });
     expect(state.lines).toHaveLength(3);
+  });
+  it.each<CartLine>([
+    { ...line, color: 'White' }, { ...line, size: 'XS' }, { ...line, color: 'White', size: 'XS' },
+  ])('rejects unsupported product variants on add and replacement: %j', (invalid) => {
+    const state = { lines: [line] };
+    expect(cartReducer(state, { type: 'replace', state: { lines: [{ ...line, size: 'L' }, invalid] } })).toBe(state);
+    expect(cartReducer(state, { type: 'add', line: invalid })).toBe(state);
   });
   it.each([[0, 1], [-3, 1], [2.9, 2], [40, 10], [NaN, 1], [Infinity, 1]])
     ('clamps %s to %s on add, set, and replace', (quantity, expected) => {

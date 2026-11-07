@@ -40,6 +40,15 @@ describe('validated storage', () => {
     expect(isCartState({ lines: [{ ...line, unitPrice: Infinity }] })).toBe(false);
     expect(isCartState({ lines: [line, line] })).toBe(false);
   });
+  it.each<CartLine>([
+    { ...line, color: 'White' }, { ...line, size: 'XS' }, { ...line, color: 'White', size: 'XS' },
+  ])('recovers the whole persisted cart for an unsupported product variant: %j', (invalid) => {
+    writeJson(CART_STORAGE_KEY, { lines: [line, invalid] });
+    expect(readJson(CART_STORAGE_KEY, isCartState, fallback)).toBe(fallback);
+    const { result } = renderHook(useCart, { wrapper: CartProvider });
+    expect(result.current.lines).toEqual([]);
+    expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!)).toEqual({ version: 1, value: { lines: [] } });
+  });
   it('rejects personal fields in hydrated cart data and strips extras from additions', () => {
     writeJson(CART_STORAGE_KEY, { lines: [{ ...line, email: 'private@example.test' }] });
     expect(readJson(CART_STORAGE_KEY, isCartState, fallback)).toBe(fallback);

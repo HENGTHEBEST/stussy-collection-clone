@@ -59,7 +59,18 @@ export function CheckoutPage() {
       <input id={id} type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
         autoComplete="off" inputMode={inputMode} required spellCheck={payment ? false : undefined}
         aria-labelledby={`${id}-label`}
-        value={fields[key]} onChange={(event) => setFields((current) => ({ ...current, [key]: event.target.value }))}
+        value={fields[key]} onChange={(event) => {
+          const value = key === 'expiry'
+            ? event.target.value.replace(/^(\d{2})\/?(\d{1,2})$/, '$1/$2').replace(/^(\d{2})\/$/, '$1')
+            : event.target.value;
+          setFields((current) => ({ ...current, [key]: value }));
+        }}
+        onKeyDown={(event) => {
+          const field = event.currentTarget;
+          // Backspace beside the automatic slash edits the month instead of restoring the slash.
+          if (key === 'expiry' && event.key === 'Backspace' && field.selectionStart === 3
+            && field.selectionEnd === 3 && field.value[2] === '/') field.setSelectionRange(2, 2);
+        }}
         aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `${id}-error` : undefined} />
       {errors[key] && <span id={`${id}-error`} className="field-error">{errors[key]}</span>}
     </label>;

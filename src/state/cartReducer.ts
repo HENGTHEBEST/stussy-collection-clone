@@ -29,9 +29,8 @@ export function clampQuantity(quantity: number): number {
 function isLineData(value: unknown): value is CartLine {
   if (typeof value !== 'object' || value === null) return false;
   const line = value as Record<string, unknown>;
-  return products.some((product) => product.id === line.productId)
-    && ['Black', 'White', 'Natural'].includes(line.color as string)
-    && ['XS', 'S', 'M', 'L', 'XL'].includes(line.size as string)
+  const product = products.find((item) => item.id === line.productId);
+  return Boolean(product && product.color === line.color && product.sizes.includes(line.size as ProductSize))
     && typeof line.quantity === 'number'
     && typeof line.unitPrice === 'number' && Number.isFinite(line.unitPrice) && line.unitPrice > 0;
 }

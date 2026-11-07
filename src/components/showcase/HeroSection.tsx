@@ -34,8 +34,8 @@ export function HeroSection() {
   }, [enabled]);
   return <section id="hero" ref={section} className="hero-section" tabIndex={-1}>
     <div className="hero-images" ref={images}>
-      <SafeImage src="/assets/hero-man.jpg" alt="Man wearing a black Stussy script logo tee" fallbackLabel="Man wearing a black Stussy script logo tee image unavailable" fetchPriority="high" />
-      <SafeImage src="/assets/hero-woman.jpg" alt="Woman wearing a white Stussy Summer Classics tee" fallbackLabel="Woman wearing a white Stussy Summer Classics tee image unavailable" fetchPriority="high" />
+      <SafeImage src="/assets/hero-man.jpg" alt="Man wearing a white Stussy script logo tee" fallbackLabel="Man wearing a white Stussy script logo tee image unavailable" fetchPriority="high" />
+      <SafeImage src="/assets/hero-woman.jpg" alt="Woman wearing a black Stussy tee" fallbackLabel="Woman wearing a black Stussy tee image unavailable" fetchPriority="high" />
     </div>
     <div className="hero-shade" aria-hidden="true" /><div className="hero-divider" aria-hidden="true" />
     <div className="hero-content">

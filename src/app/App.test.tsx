@@ -27,6 +27,9 @@ it('composes the complete showcase with local media and all thirteen product act
     expect(within(cards[index]).getByRole('img')).toHaveAttribute('src', product.image);
   }
   const images = [...document.querySelectorAll('main img')];
+  const hero = within(document.getElementById('hero')!);
+  expect(hero.getByRole('img', { name: 'Man wearing a white Stussy script logo tee' })).toHaveAttribute('src', '/assets/hero-man.jpg');
+  expect(hero.getByRole('img', { name: 'Woman wearing a black Stussy tee' })).toHaveAttribute('src', '/assets/hero-woman.jpg');
   expect(images.every((image) => image.getAttribute('src')?.startsWith('/assets/'))).toBe(true);
   for (const path of ['hero-man.jpg', 'hero-woman.jpg', 'stussy-logo.png', 'manifesto.jpg', 'motif-dice.png', 'motif-8-ball.jpg', 'lookbook-8-ball-black.jpg']) {
     expect(document.querySelector(`main img[src="/assets/${path}"]`)).toBeInTheDocument();
