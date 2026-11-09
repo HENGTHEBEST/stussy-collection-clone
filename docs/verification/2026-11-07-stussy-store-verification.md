@@ -127,3 +127,20 @@ Thirteen JPEG viewport captures total about 1.55 MB. PNG captures were visually 
 | Recorded desktop/mobile browser verification | PASS | Viewport matrix, controls/states/claims and retained screenshots in this report |
 
 Remaining limits: Chromium only; emulated touch and reduced motion, no physical mobile device, native-window DPI, Firefox/Safari, actual screen-reader speech, or deployed-host deep-link configuration. Source screenshots do not support pixel-identical signoff. Local preview acceptance does not prove production hosting or any external service. The store remains a clearly disclosed simulation.
+
+## 2026-11-09 Bakong KHQR mock-checkout extension
+
+The showcase now uses a local Express API and SQLite order repository for a simulated Bakong KHQR checkout. Server-side catalog pricing determines totals; the browser cannot submit trusted prices. The order page displays an explicitly simulated QR, USD amount, countdown and mock success action. Paid state survives reload through the API database. Card-number, expiry and CVC fields were removed.
+
+Final automated evidence on Windows with Node 24:
+
+| Command | Result |
+| --- | --- |
+| `npm test` | PASS - 24 files, 273 tests |
+| `npm run typecheck` | PASS |
+| `npm run build` | PASS - 487 modules; production frontend generated in `dist/` |
+| `npm run assets:verify` | PASS - 18 nonempty local assets |
+
+The extended browser runner creates fictional orders through the real local API and verifies 360, 390, 768, 1024 and 1440 pixel widths. At every width it checks the neutral theme, viewport fit, absence of card fields, server-created order, cart clearing only after HTTP 201, decoded QR, exact $60.00 total for the selected $48 item plus $12 shipping, USD currency, countdown changes, simulated success, paid-state reload and unknown-order recovery. The isolated run uses an otherwise-free browser origin and requires the exact `/api/health` JSON `{ ready: true, paymentMode: "mock" }`, preventing an unrelated Vite fallback from being mistaken for this app. Stopping the API produces the connection-recovery UI and does not label the payment failed.
+
+No Bakong network, token or real-money movement was involved. `PAYMENT_MODE=sit` and production modes fail closed. Real enablement still requires approved merchant details, official Bakong SIT endpoint and server-only token, a compliant gateway adapter, amount/currency/expiry/transaction verification, reconciliation, HTTPS, durable production storage and bank acceptance. Local SQLite contains fictional customer delivery data and is ignored by Git; no `data/`, `.env` or `.env.local` file is tracked.
