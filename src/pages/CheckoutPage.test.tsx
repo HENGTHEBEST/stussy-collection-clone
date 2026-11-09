@@ -123,3 +123,25 @@ it('shows a public service validation error without clearing the cart', async ()
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Check the highlighted checkout information.'));
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
 });
+
+it.each([201, 503])('ignores an abandoned checkout response (%s) after cart edits and preserves navigation', async (status) => {
+  let resolve!: (response: Response) => void;
+  const fetch = vi.fn().mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));
+  vi.stubGlobal('fetch', fetch);
+  seedCart(); window.history.replaceState(null, '', '/checkout');
+  render(<App />); fillCheckout();
+  fireEvent.submit(getForm());
+  expect(fetch).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Cart (2)' }));
+  fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } });
+  const cartAnnouncement = screen.getByRole('status').textContent;
+  expect(window.location.pathname).toBe('/cart');
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([{ ...line, quantity: 3 }]);
+  await act(async () => resolve(new Response(JSON.stringify(status === 201 ? order : { error: { message: 'The shop service is temporarily unavailable.' } }), { status })));
+  expect(window.location.pathname).toBe('/cart');
+  expect(screen.getByRole('heading', { name: 'Cart', level: 1 })).toBeVisible();
+  expect(screen.getByLabelText('Quantity')).toHaveValue(3);
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([{ ...line, quantity: 3 }]);
+  expect(screen.getByRole('status').textContent).toBe(cartAnnouncement);
+});

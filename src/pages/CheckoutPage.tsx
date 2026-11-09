@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import type { CreateOrderRequest } from '../../shared/commerce';
 import { OrderSummary } from '../components/commerce/OrderSummary';
@@ -25,6 +25,11 @@ export function CheckoutPage() {
   const [networkError, setNetworkError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submitted = useRef(false);
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
   const form = useRef<HTMLFormElement>(null);
 
   // Cart clearing can render before the router's order transition commits.
@@ -53,9 +58,11 @@ export function CheckoutPage() {
         lines: lines.map(({ productId, size, color, quantity }) => ({ productId, size, color, quantity })),
       };
       const order = await createOrder(request);
+      if (!active.current) return;
       clear();
       navigate('/order/' + order.id, { replace: true, state: { order } });
     } catch (error) {
+      if (!active.current) return;
       const message = error instanceof ApiError ? error.message : 'The shop service is temporarily unavailable.';
       setNetworkError(message);
       announce(message);
