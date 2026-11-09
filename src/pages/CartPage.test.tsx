@@ -41,12 +41,12 @@ it('renders captured prices, local media, variant details and editable totals wi
   expect(screen.getByText('Line total: $120.00')).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent(`Updated ${products[0].name} (Black / M) to 3.`);
   expect(within(screen.getByRole('region', { name: 'Order summary' })).getByText('$132.00')).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Demo checkout' })).toHaveAttribute('href', '/checkout');
+  expect(screen.getByRole('link', { name: 'Checkout' })).toHaveAttribute('href', '/checkout');
   await userEvent.click(screen.getByRole('button', { name: `Remove ${products[0].name} (Black / M) from cart` }));
   expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent(`Removed ${products[0].name} (Black / M) from cart.`);
-  expect(screen.queryByRole('link', { name: 'Demo checkout' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Demo checkout' })).toBeDisabled();
+  expect(screen.queryByRole('link', { name: 'Checkout' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Checkout' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Clear cart' })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Explore shop' })).toHaveAttribute('href', '/shop');
 });
@@ -55,11 +55,11 @@ it('formats fractional captured prices and disables empty summary checkout seman
   const view = render(<MemoryRouter><OrderSummary lines={[{ ...line, quantity: 3, unitPrice: 0.1 }]} /></MemoryRouter>);
   expect(screen.getByText('$0.30')).toBeVisible();
   expect(screen.getByText('$12.30')).toBeVisible();
-  expect(screen.getByText(/demo only/i)).toBeVisible();
+  expect(screen.getByText(/estimates only/i)).toBeVisible();
   view.rerender(<MemoryRouter><OrderSummary lines={[]} /></MemoryRouter>);
   expect(screen.getByText('Free')).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Demo checkout' })).toBeDisabled();
-  expect(screen.queryByRole('link', { name: 'Demo checkout' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Checkout' })).toBeDisabled();
+  expect(screen.queryByRole('link', { name: 'Checkout' })).not.toBeInTheDocument();
 });
 
 it('confirms clear with focus trapping, cancel, Escape, scroll restoration and focus return', async () => {

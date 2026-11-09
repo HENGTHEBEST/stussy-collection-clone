@@ -1,196 +1,125 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { App } from '../app/App';
-import { CART_STORAGE_KEY, ORDER_STORAGE_KEY } from '../lib/storage';
-import { products } from '../data/products';
+import { CART_STORAGE_KEY } from '../lib/storage';
+import type { PublicOrder } from '../../shared/commerce';
 
 const line = { productId: 1, color: 'Black', size: 'M', quantity: 2, unitPrice: 45 };
-const order = {
-  orderId: 'DEMO-ABCDEF12', createdAt: '2026-11-07T08:00:00.000Z', lines: [line],
-  subtotal: 90, shipping: 12, total: 102, deliveryLabel: 'Standard demo delivery',
+const order: PublicOrder = {
+  id: '019a6215-d300-4000-8000-000000000001', status: 'awaiting_payment', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z',
+  deliveryLabel: 'Express delivery', currency: 'USD', subtotalMinor: 9600, shippingMinor: 2400, totalMinor: 12000,
+  lines: [{ productId: 1, slug: 'tee', name: 'Server Tee', image: '/tee.png', size: 'M', color: 'Black', quantity: 2, unitPriceMinor: 4800 }],
+  payment: { status: 'pending', qrDataUrl: 'data:image/png;base64,AAAA', expiresAt: '2026-11-09T00:15:00.000Z', providerReference: 'mock-1' }, mockMode: true,
 };
 const inputs = {
-  Name: 'Private Buyer', Email: 'buyer@example.test', Phone: '+855 (12) 345-678',
-  'Street address': 'Secret Street 987', City: 'Private City', Region: 'Private Region',
-  'Postal code': 'PRIVATE-987', Country: 'Private Country', 'Cardholder name': 'Private Cardholder',
-  'Demo card number': '4242 4242 4242 4242', 'Expiry (MM/YY)': '12/39', CVC: '987',
+  Name: 'Buyer', Email: 'buyer@example.test', Phone: '+855 (12) 345-678',
+  'Street address': 'Street 1', City: 'Phnom Penh', Region: 'Phnom Penh', 'Postal code': '12000', Country: 'Cambodia',
 };
 function seedCart() { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ version: 1, value: { lines: [line] } })); }
-function seedOrder(value: unknown = order) { localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify({ version: 1, value })); }
 function fillCheckout() {
   for (const [label, value] of Object.entries(inputs)) fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
+  fireEvent.change(screen.getByLabelText('Delivery option'), { target: { value: 'express' } });
 }
+function getForm() { return screen.getByRole('button', { name: 'Continue to KHQR' }).closest('form')!; }
 beforeEach(() => { localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 
-it('replace-redirects empty checkout to cart without presenting an actionable form', () => {
+it('replace-redirects empty checkout to cart without an actionable form', () => {
   window.history.replaceState(null, '', '/checkout');
   const historyLength = window.history.length;
   render(<App />);
   expect(screen.getByRole('heading', { name: 'Cart', level: 1 })).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Place demo order' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Continue to KHQR' })).not.toBeInTheDocument();
   expect(window.location.pathname).toBe('/cart');
   expect(window.history.length).toBe(historyLength);
 });
 
-it('announces invalid checkout once while associating errors and focusing the first invalid field', () => {
+it('focuses the first invalid field and associates errors with one polite announcement', () => {
+  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
   seedCart(); render(<App initialEntries={['/checkout']} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Place demo order' }));
-  const name = screen.getByLabelText('Name', { exact: true });
-  expect(name).toHaveFocus();
+  fireEvent.submit(getForm());
+  expect(screen.getByLabelText('Name', { exact: true })).toHaveFocus();
   for (const label of Object.keys(inputs)) {
     const field = screen.getByLabelText(label, { exact: true });
     expect(field).toHaveAttribute('aria-invalid', 'true');
     expect(field).toHaveAccessibleDescription('This field is required.');
   }
-  expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
-  expect(screen.getByRole('status')).toHaveTextContent('Check the highlighted fields before placing your demo order.');
-  expect(within(screen.getByRole('main')).getByText('Check the highlighted fields before placing your demo order.')).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent(/highlighted fields/i);
   expect(document.querySelectorAll('[aria-live], [role="alert"], [role="status"]')).toHaveLength(1);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
 });
 
-it('rejects a different card with an associated demo-mode error', () => {
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
-  fireEvent.change(screen.getByLabelText('Demo card number'), { target: { value: '5555 5555 5555 4444' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Place demo order' }));
-  const card = screen.getByLabelText('Demo card number');
-  expect(card).toHaveFocus();
-  expect(card).toHaveAccessibleDescription('Use the documented demo card number.');
-  expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
-});
-
-it('formats numeric expiry typing for a valid demo order without persisting payment data', async () => {
-  const user = userEvent.setup();
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
-  const expiry = screen.getByLabelText('Expiry (MM/YY)');
-  await user.clear(expiry);
-  await user.type(expiry, '1299');
-  expect(expiry).toHaveValue('12/99');
-  expect(expiry).toHaveAttribute('inputmode', 'numeric');
-  await user.click(screen.getByRole('button', { name: 'Place demo order' }));
-  expect(screen.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
-  expect(JSON.stringify(localStorage)).not.toContain('12/99');
-});
-
-it('formats pasted expiry and lets backspace cross the automatic separator', async () => {
-  const user = userEvent.setup();
+it('shows contact and address fields with KHQR copy and no removed payment fields', () => {
   seedCart(); render(<App initialEntries={['/checkout']} />);
-  const expiry = screen.getByLabelText('Expiry (MM/YY)');
-  await user.click(expiry);
-  await user.paste('1299');
-  expect(expiry).toHaveValue('12/99');
-  await user.keyboard('{Backspace}{Backspace}{Backspace}');
-  expect(expiry).toHaveValue('1');
-  await user.type(expiry, '299');
-  expect(expiry).toHaveValue('12/99');
-  await user.clear(expiry);
-  await user.paste('12/99');
-  expect(expiry).toHaveValue('12/99');
+  const main = within(screen.getByRole('main'));
+  expect(main.getByRole('button', { name: 'Continue to KHQR' })).toBeVisible();
+  expect(main.getByText(/estimates only/i)).toBeVisible();
+  for (const label of ['Cardholder name', 'Demo card number', 'Expiry (MM/YY)', 'CVC']) {
+    expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
+  }
+  expect(screen.getByRole('main').textContent).not.toMatch(/card|4242|no personal.*saved/i);
 });
 
-it.each(['1399', '129', '12/999', 'ab12/99'])('rejects malformed expiry input %s', async (value) => {
-  const user = userEvent.setup();
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
-  const expiry = screen.getByLabelText('Expiry (MM/YY)');
-  await user.clear(expiry);
-  await user.click(expiry);
-  await user.paste(value);
-  await user.click(screen.getByRole('button', { name: 'Place demo order' }));
-  expect(expiry).toHaveFocus();
-  expect(expiry).toHaveAccessibleDescription('Enter expiry as MM/YY.');
-  expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
-});
-
-it('lets backspace at the expiry separator edit the month without getting stuck', async () => {
-  const user = userEvent.setup();
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
-  const expiry = screen.getByLabelText('Expiry (MM/YY)');
-  await user.click(expiry);
-  await user.keyboard('{Home}{ArrowRight}{ArrowRight}{ArrowRight}{Backspace}');
-  expect(expiry).toHaveValue('1/39');
-  await user.keyboard('2');
-  expect(expiry).toHaveValue('12/39');
-});
-
-it('creates one non-personal stored summary, clears cart, and replace-navigates to confirmation', () => {
+it('creates one server order, preserves the cart while pending, then clears and replace-navigates with the order', async () => {
+  let resolve!: (response: Response) => void;
+  const fetch = vi.fn().mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));
+  vi.stubGlobal('fetch', fetch);
+  const requestId = '019a6215-d300-4000-8000-000000000002';
+  const randomUUID = vi.spyOn(crypto, 'randomUUID').mockReturnValue(requestId);
   seedCart(); window.history.replaceState(null, '', '/checkout');
   const historyLength = window.history.length;
-  const randomUUID = vi.spyOn(crypto, 'randomUUID');
-  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
-  const log = vi.spyOn(console, 'log'); const info = vi.spyOn(console, 'info');
   render(<App />); fillCheckout();
-  const main = within(screen.getByRole('main'));
-  expect(main.getByText(/simulation/i)).toBeVisible();
-  expect(main.getByText(/4242 4242 4242 4242/)).toBeVisible();
-  expect(main.getByText(/no personal or payment data is saved/i)).toBeVisible();
-  for (const label of ['Cardholder name', 'Demo card number', 'Expiry (MM/YY)', 'CVC']) {
-    expect(screen.getByLabelText(label, { exact: true })).toHaveAttribute('autocomplete', 'off');
-    expect(screen.getByLabelText(label, { exact: true })).toHaveAttribute('inputmode');
-  }
-  const form = screen.getByRole('button', { name: 'Place demo order' }).closest('form')!;
+  const form = getForm();
   act(() => { fireEvent.submit(form); fireEvent.submit(form); });
-  expect(screen.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent('Demo order placed. No payment was sent.');
+  expect(fetch).toHaveBeenCalledTimes(1);
   expect(randomUUID).toHaveBeenCalledTimes(1);
-  const stored = JSON.parse(localStorage.getItem(ORDER_STORAGE_KEY)!);
-  expect(stored).toMatchObject({ version: 1, value: { ...order, orderId: expect.stringMatching(/^DEMO-[0-9A-F]{8}$/), createdAt: expect.any(String) } });
-  expect(window.location.pathname).toBe(`/order/${stored.value.orderId}`);
+  expect(form).toHaveAttribute('aria-busy', 'true');
+  expect(screen.getByRole('button', { name: 'Continue to KHQR' })).toBeDisabled();
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
+  expect(window.location.pathname).toBe('/checkout');
+  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+    requestId, customer: { name: 'Buyer', email: 'buyer@example.test', phone: '+855 (12) 345-678' },
+    address: { street: 'Street 1', city: 'Phnom Penh', region: 'Phnom Penh', postalCode: '12000', country: 'Cambodia' },
+    delivery: 'express', lines: [{ productId: 1, size: 'M', color: 'Black', quantity: 2 }],
+  });
+  await act(async () => resolve(new Response(JSON.stringify(order), { status: 201 })));
+  expect(window.location.pathname).toBe('/order/' + order.id);
   expect(window.history.length).toBe(historyLength);
-  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!)).toEqual({ version: 1, value: { lines: [] } });
-  const serialized = JSON.stringify(stored);
-  for (const value of Object.values(inputs)) expect(serialized).not.toContain(JSON.stringify(value));
-  for (const key of ['name', 'email', 'phone', 'street', 'city', 'region', 'postalCode', 'country', 'cardholder', 'cardNumber', 'expiry', 'cvc']) {
-    expect(Object.keys(stored.value)).not.toContain(key);
-    expect(Object.keys(stored.value.lines[0])).not.toContain(key);
-  }
-  expect(fetch).not.toHaveBeenCalled(); expect(log).not.toHaveBeenCalled(); expect(info).not.toHaveBeenCalled();
-  cleanup(); render(<App initialEntries={[`/order/${stored.value.orderId}`]} />);
-  expect(screen.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
-  expect(screen.getByText(stored.value.orderId)).toBeVisible();
+  expect(window.history.state.usr).toEqual({ order });
+  expect(screen.getByText(order.id)).toBeVisible();
+  expect(screen.getByText('Unit price: $48.00')).toBeVisible();
+  expect(screen.getByText('Line total: $96.00')).toBeVisible();
+  expect(screen.getByText('$120.00')).toBeVisible();
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
+  expect(localStorage.getItem('stussy-demo-order-v1')).toBeNull();
+  expect(JSON.stringify(localStorage)).not.toContain('buyer@example.test');
 });
 
-it('restores the latest matching order with captured prices, local product media, and demo delivery', () => {
-  seedOrder(); render(<App initialEntries={['/order/DEMO-ABCDEF12']} />);
-  const main = within(screen.getByRole('main'));
-  expect(main.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
-  expect(main.getByText('DEMO-ABCDEF12')).toBeVisible();
-  expect(main.getByRole('img', { name: products[0].name })).toHaveAttribute('src', products[0].image);
-  expect(main.getByText('Black / M')).toBeVisible();
-  expect(main.getByText('Quantity: 2')).toBeVisible();
-  expect(main.getByText('Unit price: $45.00')).toBeVisible();
-  expect(main.getByText('Line total: $90.00')).toBeVisible();
-  expect(main.getByText('$102.00')).toBeVisible();
-  expect(main.getByText('Standard demo delivery')).toBeVisible();
-  expect(main.getByText(/no payment was sent/i)).toBeVisible();
-  expect(main.getByText(order.createdAt)).toHaveAttribute('datetime', order.createdAt);
-  fireEvent.error(main.getByRole('img', { name: products[0].name }));
-  expect(main.getByRole('img', { name: `${products[0].name} image unavailable` })).toBeVisible();
+it('keeps the cart and form on network failure, announces once, and allows retry', async () => {
+  const fetch = vi.fn().mockRejectedValueOnce(new TypeError('private transport details')).mockResolvedValueOnce(new Response(JSON.stringify(order), { status: 201 }));
+  vi.stubGlobal('fetch', fetch);
+  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  const form = getForm(); fireEvent.submit(form);
+  await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
+  const message = 'The shop service is temporarily unavailable.';
+  expect(screen.getByRole('status')).toHaveTextContent(message);
+  expect(within(screen.getByRole('main')).getByText(message)).toBeVisible();
+  expect(document.querySelectorAll('[aria-live], [role="alert"], [role="status"]')).toHaveLength(1);
+  expect(screen.getByLabelText('Email', { exact: true })).toHaveValue('buyer@example.test');
+  expect(screen.getByRole('button', { name: 'Continue to KHQR' })).toBeEnabled();
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
+  expect(screen.queryByText(/private transport/)).not.toBeInTheDocument();
+  fireEvent.submit(form);
+  await waitFor(() => expect(screen.getByText(order.id)).toBeVisible());
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
 });
 
-it.each([
-  ['mismatched', order, '/order/DEMO-00000000'],
-  ['corrupt', { ...order, email: 'leaked@example.test' }, '/order/DEMO-ABCDEF12'],
-  ['unknown product', { ...order, lines: [{ ...line, productId: 999 }] }, '/order/DEMO-ABCDEF12'],
-  ['missing', null, '/order/DEMO-ABCDEF12'],
-])('recovers safely from a %s order without rendering partial data', (_name, value, path) => {
-  if (value) seedOrder(value);
-  render(<App initialEntries={[path]} />);
-  const main = within(screen.getByRole('main'));
-  expect(main.getByRole('heading', { name: 'Order not available', level: 1 })).toBeVisible();
-  expect(main.getByRole('link', { name: 'Shop' })).toHaveAttribute('href', '/shop');
-  expect(main.queryByRole('img')).not.toBeInTheDocument();
-});
-
-it('shows the current safe summary when storage writes fail and honestly describes refresh limits', () => {
-  seedCart();
-  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('Unavailable'); });
-  window.history.replaceState(null, '', '/checkout');
-  render(<App />); fillCheckout();
-  fireEvent.click(screen.getByRole('button', { name: 'Place demo order' }));
-  expect(screen.getByRole('heading', { name: 'Order confirmation', level: 1 })).toBeVisible();
-  expect(screen.getByText(/refresh.*storage/i)).toBeVisible();
-  expect(window.history.state.usr).toBeNull();
-  cleanup(); render(<App />);
-  expect(screen.getByRole('heading', { name: 'Order not available', level: 1 })).toBeVisible();
+it('shows a public service validation error without clearing the cart', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'invalid_checkout', message: 'Check the highlighted checkout information.' } }), { status: 400 })));
+  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  fireEvent.submit(getForm());
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Check the highlighted checkout information.'));
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
 });

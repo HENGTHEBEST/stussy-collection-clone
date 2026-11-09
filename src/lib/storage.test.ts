@@ -1,7 +1,7 @@
 import { StrictMode, createElement } from 'react';
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CART_STORAGE_KEY, WISHLIST_STORAGE_KEY, ORDER_STORAGE_KEY, isWishlistIds, readJson, writeJson, removeValue } from './storage';
+import { CART_STORAGE_KEY, WISHLIST_STORAGE_KEY, isWishlistIds, readJson, writeJson, removeValue } from './storage';
 import { isCartState, type CartLine } from '../state/cartReducer';
 import { CartProvider, useCart } from '../state/CartProvider';
 import { WishlistProvider, useWishlist } from '../state/WishlistProvider';
@@ -18,9 +18,9 @@ describe('validated storage', () => {
     expect(readJson(CART_STORAGE_KEY, isCartState, fallback)).toEqual({ lines: [line] });
     writeJson(WISHLIST_STORAGE_KEY, [1, 2]);
     expect(readJson('stussy-demo-wishlist-v1', isWishlistIds, [])).toEqual([1, 2]);
-    writeJson(ORDER_STORAGE_KEY, { id: 'demo' });
-    removeValue('stussy-demo-order-v1');
-    expect(localStorage.getItem(ORDER_STORAGE_KEY)).toBeNull();
+    writeJson('test-storage-key', { id: 'demo' });
+    removeValue('test-storage-key');
+    expect(localStorage.getItem('test-storage-key')).toBeNull();
   });
   it.each([
     '{broken', 'null', JSON.stringify({ version: 2, value: { lines: [line] } }),

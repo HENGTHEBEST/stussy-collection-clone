@@ -9,15 +9,19 @@ export function calculateTotals(lines: CartLine[]) {
 
 export function formatCurrency(value: number) { return `$${value.toFixed(2)}`; }
 
+export function formatMinorCurrency(value: number, currency: 'USD') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(value / 100);
+}
+
 export function OrderSummary({ lines }: { lines: CartLine[] }) {
   const { subtotal, shipping, total } = calculateTotals(lines);
   return <section className="product-card" aria-labelledby="order-summary-title">
     <h2 id="order-summary-title" className="detail-subheading">Order summary</h2>
     <dl><dt>Subtotal</dt><dd>{formatCurrency(subtotal)}</dd>
-      <dt>Demo shipping</dt><dd>{shipping === 0 ? 'Free' : formatCurrency(shipping)}</dd>
+      <dt>Estimated shipping</dt><dd>{shipping === 0 ? 'Free' : formatCurrency(shipping)}</dd>
       <dt>Total</dt><dd>{formatCurrency(total)}</dd></dl>
-    {subtotal > 0 && subtotal < 150 && <p>{formatCurrency(150 - subtotal)} away from free demo shipping.</p>}
-    <p>Demo only. No real payment or fulfillment.</p>
-    {lines.length ? <Link to="/checkout">Demo checkout</Link> : <button type="button" disabled>Demo checkout</button>}
+    {subtotal > 0 && subtotal < 150 && <p>{formatCurrency(150 - subtotal)} away from free shipping.</p>}
+    <p>Estimates only. Final prices and delivery are confirmed by the shop service.</p>
+    {lines.length ? <Link to="/checkout">Checkout</Link> : <button type="button" disabled>Checkout</button>}
   </section>;
 }

@@ -2,7 +2,6 @@ import { products } from '../data/products';
 
 export const CART_STORAGE_KEY = 'stussy-demo-cart-v1';
 export const WISHLIST_STORAGE_KEY = 'stussy-demo-wishlist-v1';
-export const ORDER_STORAGE_KEY = 'stussy-demo-order-v1';
 
 export interface StoredEnvelope<T> { version: 1; value: T }
 
