@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce';
-import { priceOrder } from '../catalog/order-pricing';
-import { MockBakongGateway } from '../payments/mock-bakong-gateway';
-import type { PaymentGateway } from '../payments/payment-gateway';
-import type { OrderRepository, StoredOrder } from './order-repository';
+import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce.js';
+import { priceOrder } from '../catalog/order-pricing.js';
+import { MockBakongGateway } from '../payments/mock-bakong-gateway.js';
+import type { PaymentGateway } from '../payments/payment-gateway.js';
+import type { OrderRepository, StoredOrder } from './order-repository.js';
 
 export class OrderValidationError extends Error {}
 

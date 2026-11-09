@@ -1,8 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
-import type { PublicOrderLine } from '../../shared/commerce';
+import type { PublicOrderLine } from '../../shared/commerce.js';
 import type {
   CreateStoredOrderInput, OrderRepository, StoredOrder, StoredPaymentAttempt,
-} from './order-repository';
+} from './order-repository.js';
 
 type OrderRow = Omit<StoredOrder, 'customer' | 'address' | 'lines' | 'payment' | 'mockMode'>
   & Omit<StoredPaymentAttempt, 'status'> & {

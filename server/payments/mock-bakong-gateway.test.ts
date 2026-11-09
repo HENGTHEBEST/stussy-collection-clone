@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { MockBakongGateway } from './mock-bakong-gateway';
+import { MockBakongGateway } from './mock-bakong-gateway.js';
 
 const instant = '2026-11-09T10:00:00.000Z';
 const expiresAt = '2026-11-09T10:10:00.000Z';

@@ -1,4 +1,4 @@
-import type { Product } from './commerce';
+import type { Product } from './commerce.js';
 
 // Prices, sizes, colors, availability, features, and ranks are illustrative demo
 // data, not live Stussy pricing or inventory. Source copy and imagery are preserved.

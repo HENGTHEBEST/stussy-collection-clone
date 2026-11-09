@@ -1,4 +1,4 @@
-import type { PaymentStatus } from '../../shared/commerce';
+import type { PaymentStatus } from '../../shared/commerce.js';
 
 export interface GatewayOrder {
   orderId: string; totalMinor: number; currency: 'USD'; expiresAt: string;

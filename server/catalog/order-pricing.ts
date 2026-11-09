@@ -1,5 +1,5 @@
-import { products } from '../../shared/catalog';
-import type { CheckoutLineInput, DeliveryMethod, PublicOrderLine } from '../../shared/commerce';
+import { products } from '../../shared/catalog.js';
+import type { CheckoutLineInput, DeliveryMethod, PublicOrderLine } from '../../shared/commerce.js';
 
 export class OrderPricingError extends Error {}
 

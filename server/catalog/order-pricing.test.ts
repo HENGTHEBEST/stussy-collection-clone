@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { OrderPricingError, priceOrder } from './order-pricing';
+import { OrderPricingError, priceOrder } from './order-pricing.js';
 
 describe('priceOrder', () => {
   it('ignores browser prices by accepting only variant inputs', () => {

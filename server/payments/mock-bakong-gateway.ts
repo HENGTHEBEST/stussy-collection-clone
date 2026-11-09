@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import QRCode from 'qrcode';
-import type { GatewayCheckResult, GatewayOrder, GatewayPayment, PaymentGateway } from './payment-gateway';
+import type { GatewayCheckResult, GatewayOrder, GatewayPayment, PaymentGateway } from './payment-gateway.js';
 
 // Test/demo provider only: these QR codes cannot initiate a real Bakong payment.
 export class MockBakongGateway implements PaymentGateway {

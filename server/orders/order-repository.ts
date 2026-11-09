@@ -1,6 +1,6 @@
 import type {
   CheckoutCustomer, DeliveryAddress, DeliveryMethod, PublicOrder, PublicPaymentAttempt,
-} from '../../shared/commerce';
+} from '../../shared/commerce.js';
 
 export interface StoredPaymentAttempt extends PublicPaymentAttempt {
   qrPayload: string;

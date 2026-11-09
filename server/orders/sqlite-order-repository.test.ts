@@ -3,9 +3,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { priceOrder } from '../catalog/order-pricing';
-import type { CreateStoredOrderInput } from './order-repository';
-import { SqliteOrderRepository } from './sqlite-order-repository';
+import { priceOrder } from '../catalog/order-pricing.js';
+import type { CreateStoredOrderInput } from './order-repository.js';
+import { SqliteOrderRepository } from './sqlite-order-repository.js';
 
 const createdAt = '2026-11-09T10:00:00.000Z';
 const paidAt = '2026-11-09T10:01:00.000Z';

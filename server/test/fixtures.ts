@@ -1,4 +1,4 @@
-import type { CreateOrderRequest } from '../../shared/commerce';
+import type { CreateOrderRequest } from '../../shared/commerce.js';
 
 export const fixedNow = '2026-11-09T10:00:00.000Z';
 export const fixedExpiry = '2026-11-09T10:10:00.000Z';

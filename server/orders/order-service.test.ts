@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CreateOrderRequest } from '../../shared/commerce';
-import type { PaymentGateway } from '../payments/payment-gateway';
-import { MockBakongGateway } from '../payments/mock-bakong-gateway';
-import { createOrderRequest, fixedExpiry, fixedNow } from '../test/fixtures';
-import { SqliteOrderRepository } from './sqlite-order-repository';
-import { OrderService, OrderValidationError } from './order-service';
+import type { CreateOrderRequest } from '../../shared/commerce.js';
+import type { PaymentGateway } from '../payments/payment-gateway.js';
+import { MockBakongGateway } from '../payments/mock-bakong-gateway.js';
+import { createOrderRequest, fixedExpiry, fixedNow } from '../test/fixtures.js';
+import { SqliteOrderRepository } from './sqlite-order-repository.js';
+import { OrderService, OrderValidationError } from './order-service.js';
 
 let repository: SqliteOrderRepository;
 let gateway: MockBakongGateway;
