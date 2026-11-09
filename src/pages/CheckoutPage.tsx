@@ -25,6 +25,7 @@ export function CheckoutPage() {
   const [networkError, setNetworkError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submitted = useRef(false);
+  const lastRequest = useRef<{ payload: string; request: CreateOrderRequest } | null>(null);
   const active = useRef(false);
   useEffect(() => {
     active.current = true;
@@ -50,14 +51,17 @@ export function CheckoutPage() {
     submitted.current = true;
     setSubmitting(true);
     try {
-      const request: CreateOrderRequest = {
-        requestId: crypto.randomUUID(),
+      const data: Omit<CreateOrderRequest, 'requestId'> = {
         customer: { name: fields.name, email: fields.email, phone: fields.phone },
         address: { street: fields.street, city: fields.city, region: fields.region, postalCode: fields.postalCode, country: fields.country },
         delivery: fields.delivery,
         lines: lines.map(({ productId, size, color, quantity }) => ({ productId, size, color, quantity })),
       };
-      const order = await createOrder(request);
+      const payload = JSON.stringify(data);
+      if (lastRequest.current?.payload !== payload) {
+        lastRequest.current = { payload, request: { requestId: crypto.randomUUID(), ...data } };
+      }
+      const order = await createOrder(lastRequest.current.request);
       if (!active.current) return;
       clear();
       navigate('/order/' + order.id, { replace: true, state: { order } });

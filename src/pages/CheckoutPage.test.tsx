@@ -2,7 +2,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { App } from '../app/App';
 import { CART_STORAGE_KEY } from '../lib/storage';
-import type { PublicOrder } from '../../shared/commerce';
+import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce';
+import { OrderService } from '../../server/orders/order-service';
+import { SqliteOrderRepository } from '../../server/orders/sqlite-order-repository';
+import { MockBakongGateway } from '../../server/payments/mock-bakong-gateway';
 
 const line = { productId: 1, color: 'Black', size: 'M', quantity: 2, unitPrice: 45 };
 const order: PublicOrder = {
@@ -117,6 +120,66 @@ it('keeps the cart and form on network failure, announces once, and allows retry
   expect(fetch.mock.calls.filter(([url]) => url === '/api/orders')).toHaveLength(2);
   await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/orders/' + order.id, { signal: expect.any(AbortSignal) }));
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
+});
+
+it('retries a committed order with the exact same payload after losing the first response', async () => {
+  const repository = new SqliteOrderRepository(':memory:');
+  const gateway = new MockBakongGateway();
+  const createPayment = vi.spyOn(gateway, 'createPayment');
+  const service = new OrderService(repository, gateway);
+  const committed: PublicOrder[] = [];
+  const fetch = vi.fn(async (url: string, options?: RequestInit) => {
+    if (options?.method === 'POST') {
+      const created = await service.createOrder(JSON.parse(options.body as string) as CreateOrderRequest);
+      committed.push(created);
+      if (committed.length === 1) throw new TypeError('Response lost after commit');
+      return new Response(JSON.stringify(created), { status: 201 });
+    }
+    return new Response(JSON.stringify(await service.getOrder(url.split('/').at(-1)!)), { status: 200 });
+  });
+  vi.stubGlobal('fetch', fetch);
+  try {
+    seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+    const form = getForm(); fireEvent.submit(form);
+    await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
+    expect(repository.findById(committed[0].id)).not.toBeNull();
+    fireEvent.submit(form);
+    await waitFor(() => expect(committed).toHaveLength(2));
+    const submissions = fetch.mock.calls.filter(([, options]) => options?.method === 'POST');
+    expect(submissions).toHaveLength(2);
+    expect(submissions[1][1]!.body).toBe(submissions[0][1]!.body);
+    expect(committed).toEqual([committed[0], committed[0]]);
+    expect(createPayment).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByText(committed[0].id)).toBeVisible());
+    expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
+  } finally {
+    cleanup();
+    repository.close();
+  }
+});
+
+it.each([
+  ['Name', 'Another Buyer'],
+  ['Street address', 'Street 2'],
+  ['Delivery option', 'standard'],
+])('uses a fresh request ID after changing %s for a retry', async (label, value) => {
+  const fetch = vi.fn().mockRejectedValue(new TypeError('Response lost'));
+  vi.stubGlobal('fetch', fetch);
+  const randomUUID = vi.spyOn(crypto, 'randomUUID')
+    .mockReturnValueOnce('019a6215-d300-4000-8000-000000000002')
+    .mockReturnValueOnce('019a6215-d300-4000-8000-000000000003');
+  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  const form = getForm(); fireEvent.submit(form);
+  await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
+  fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
+  fireEvent.submit(form);
+  await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
+  const first = JSON.parse(fetch.mock.calls[0][1].body) as CreateOrderRequest;
+  const retry = JSON.parse(fetch.mock.calls[1][1].body) as CreateOrderRequest;
+  expect(retry.requestId).not.toBe(first.requestId);
+  expect({ ...retry, requestId: first.requestId }).not.toEqual(first);
+  expect(randomUUID).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
 });
 
 it('shows a public service validation error without clearing the cart', async () => {
