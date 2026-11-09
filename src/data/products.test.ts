@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { products as sharedProducts } from '../../shared/catalog';
 import { products } from './products';
 
 describe('demo catalog integrity', () => {
+  it('uses the same catalog object in browser and server code', () => {
+    expect(products).toBe(sharedProducts);
+    expect(products.every((product) => Number.isInteger(product.demoPrice * 100))).toBe(true);
+  });
+
   it('preserves thirteen distinct products in source order', () => {
     expect(products).toHaveLength(13);
     expect(new Set(products.map((product) => product.id)).size).toBe(13);

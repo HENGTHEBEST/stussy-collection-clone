@@ -1,23 +1,10 @@
-export type ProductSize = 'XS' | 'S' | 'M' | 'L' | 'XL';
-export type ProductColor = 'Black' | 'White' | 'Natural';
+import type { Product, ProductColor, ProductSize } from '../../shared/commerce';
 
-export interface Product {
-  id: number;
-  slug: string;
-  label: string;
-  name: string;
-  description: string;
-  image: string;
-  category: 'T-Shirts' | 'Crops';
-  color: ProductColor;
-  sizes: ProductSize[];
-  demoPrice: number;
-  available: boolean;
-  featuredRank: number;
-  features: string[];
-  gridSpan: 'wide' | 'medium' | 'standard';
-  objectPosition: 'top' | 'center';
-}
+export type {
+  Product, ProductSize, ProductColor, DeliveryMethod, OrderStatus, PaymentStatus,
+  CheckoutCustomer, DeliveryAddress, CheckoutLineInput, CreateOrderRequest,
+  PublicOrderLine, PublicPaymentAttempt, PublicOrder,
+} from '../../shared/commerce';
 
 export interface CatalogFilters {
   query: string;
