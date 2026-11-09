@@ -49,3 +49,15 @@ button:disabled { opacity: .5; cursor: default; }
   .commerce-page form .shop-toolbar label { flex-basis: auto; }
   .product-card.product-detail { border: 1px solid #444; padding: 1rem; margin-top: 1.5rem; }
 }
+
+.payment-panel { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 2rem; align-items: center; border: 1px solid var(--concrete); padding: clamp(1rem, 3vw, 2rem); margin: 2rem 0; }
+.payment-panel > * { min-width: 0; }
+.payment-panel:not(:has(.khqr-frame)) { grid-template-columns: minmax(0, 1fr); }
+.payment-panel .detail-subheading { margin-top: 0; }
+.khqr-frame { width: 100%; max-width: 20rem; padding: 1.25rem; background: var(--white); }
+.khqr-frame img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+.payment-status { color: var(--white); font-weight: 700; }
+.payment-countdown { color: var(--concrete); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.connection-error { border: 1px solid var(--concrete); padding: 1.25rem; margin: 1.5rem 0; }
+.connection-error p { color: var(--concrete); }
+@media (max-width: 767px) { .payment-panel { grid-template-columns: minmax(0, 1fr); } }

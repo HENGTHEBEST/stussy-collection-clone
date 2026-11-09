@@ -97,7 +97,9 @@ it('creates one server order, preserves the cart while pending, then clears and 
 });
 
 it('keeps the cart and form on network failure, announces once, and allows retry', async () => {
-  const fetch = vi.fn().mockRejectedValueOnce(new TypeError('private transport details')).mockResolvedValueOnce(new Response(JSON.stringify(order), { status: 201 }));
+  const fetch = vi.fn().mockRejectedValueOnce(new TypeError('private transport details'))
+    .mockResolvedValueOnce(new Response(JSON.stringify(order), { status: 201 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(order), { status: 200 }));
   vi.stubGlobal('fetch', fetch);
   seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
   const form = getForm(); fireEvent.submit(form);
@@ -112,7 +114,8 @@ it('keeps the cart and form on network failure, announces once, and allows retry
   expect(screen.queryByText(/private transport/)).not.toBeInTheDocument();
   fireEvent.submit(form);
   await waitFor(() => expect(screen.getByText(order.id)).toBeVisible());
-  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(fetch.mock.calls.filter(([url]) => url === '/api/orders')).toHaveLength(2);
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/orders/' + order.id, { signal: expect.any(AbortSignal) }));
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
 });
 

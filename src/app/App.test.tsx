@@ -5,8 +5,12 @@ import { App } from './App';
 import { CART_STORAGE_KEY, WISHLIST_STORAGE_KEY } from '../lib/storage';
 import { AppErrorBoundary } from './AppErrorBoundary';
 import { products } from '../data/products';
+import { ApiError, getOrder } from '../lib/api';
+import type { PublicOrder } from '../../shared/commerce';
 
-beforeEach(() => { localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); });
+vi.mock('../lib/api', async (importOriginal) => ({ ...await importOriginal<typeof import('../lib/api')>(), getOrder: vi.fn() }));
+
+beforeEach(() => { vi.mocked(getOrder).mockReset().mockRejectedValue(new ApiError('Unknown order', 404)); localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); document.body.style.overflow = ''; });
 
 it('composes the complete showcase with local media and all thirteen product actions in catalog order', () => {
@@ -42,11 +46,31 @@ it('composes the complete showcase with local media and all thirteen product act
 it.each([
   ['/', 'Summer Classics'], ['/shop', 'Shop'], ['/cart', 'Cart'],
   ['/wishlist', 'Wishlist'], ['/product/8-ball', 'Product not found'],
-  ['/checkout', 'Cart'], ['/order/DEMO-123', 'Order not available'],
+  ['/checkout', 'Cart'],
   ['/missing', 'Page not found'],
 ])('renders the registered %s route', (path, heading) => {
   render(<App initialEntries={[path]} />);
   expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
+});
+
+
+it('loads a server order directly at its registered route without local storage', async () => {
+  vi.mocked(getOrder).mockResolvedValue({
+    id: 'direct-order', status: 'paid', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z',
+    deliveryLabel: 'Standard delivery', currency: 'USD', subtotalMinor: 9600, shippingMinor: 1200, totalMinor: 10800,
+    lines: [{ productId: 1, slug: 'snapshot-tee', name: 'Server snapshot tee', image: '/snapshot.png', size: 'M', color: 'Black', quantity: 2, unitPriceMinor: 4800 }],
+    payment: { status: 'paid', qrDataUrl: '', expiresAt: '2026-11-09T00:15:00.000Z', providerReference: 'mock-direct' }, mockMode: true,
+  } satisfies PublicOrder);
+  render(<App initialEntries={['/order/direct-order']} />);
+  expect(await screen.findByRole('heading', { name: 'Order confirmation' })).toBeVisible();
+  expect(screen.getByText('Server snapshot tee')).toBeVisible();
+  expect(screen.getByText('$108.00')).toBeVisible();
+  expect(getOrder).toHaveBeenCalledWith('direct-order', expect.any(AbortSignal));
+});
+
+it('shows recovery when a direct order route returns 404', async () => {
+  render(<App initialEntries={['/order/missing-order']} />);
+  expect(await screen.findByRole('heading', { name: 'Order not available' })).toBeVisible();
 });
 
 it.each(['/shop', '/wishlist', '/product/8-ball-tee-black', '/missing', '/#missing', '/#%E0%A4%A'])('focuses the destination heading without a usable hash at %s', async (path) => {
