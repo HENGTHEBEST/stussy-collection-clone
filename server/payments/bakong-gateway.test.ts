@@ -51,6 +51,15 @@ describe('BakongGateway', () => {
     });
   });
 
+  it('fits UUID order IDs into the KHQR bill-number limit', async () => {
+    const gateway = new BakongGateway(credentials, vi.fn(), () => new Date(instant));
+    const uuidOrder = { ...order, orderId: '12345678-1234-4234-8234-123456789abc' };
+    const payment = await gateway.createPayment(uuidOrder);
+    const decoded = (BakongKHQR as unknown as { decode(qr: string): { data: Record<string, string> } })
+      .decode(payment.qrPayload).data;
+    expect(decoded.billNumber).toBe('1234567812344234823412345');
+  });
+
   it('posts the MD5 with authorization and accepts only an exact verified transaction', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response(success()));
     const gateway = new BakongGateway(credentials, fetcher, () => new Date(instant));

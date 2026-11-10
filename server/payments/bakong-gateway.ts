@@ -20,6 +20,10 @@ export class BakongGateway implements PaymentGateway {
 
   async createPayment(order: GatewayOrder): Promise<GatewayPayment> {
     try {
+      // shortcut: KHQR bill numbers are capped at 25 characters, use the full UUID when the provider supports it.
+      const billNumber = order.orderId.length > 25
+        ? order.orderId.replaceAll('-', '').slice(0, 25)
+        : order.orderId;
       const merchant = new MerchantInfo(
         this.credentials.bakongAccountId,
         this.credentials.merchantName,
@@ -29,7 +33,7 @@ export class BakongGateway implements PaymentGateway {
         {
           currency: khqrData.currency.usd,
           amount: order.totalMinor / 100,
-          billNumber: order.orderId,
+          billNumber,
           expirationTimestamp: Date.parse(order.expiresAt),
         },
       );
