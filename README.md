@@ -30,7 +30,7 @@ The API binds to `127.0.0.1:8787`. Vite proxies `/api` to it. Keep `APP_ORIGIN` 
 
 `SQLITE_PATH=./data/store.sqlite` stores orders and immutable price snapshots in the ignored `data/` directory, including SQLite WAL/SHM files. The database contains the submitted customer name, email, phone and delivery address; use fictional details for local testing. Public order responses omit these details. Payment state is loaded from the server database rather than browser order storage. Cart and wishlist still use browser local storage. Treat an order URL as a private lookup link.
 
-Keep `data/`, `.env` and `.env.local` out of Git. Stop the API before removing a local database to reset mock orders. The mock provider's pending simulation references live in memory, while completed paid state persists in SQLite. No email, carrier, live inventory or real payment is connected.
+Keep `data/`, `.env` and `.env.local` out of Git. Stop the API before removing a local database to reset mock orders. The mock provider's pending simulation references live in memory, while completed paid state persists in SQLite. In mock mode, no email, carrier, live inventory or real payment is connected.
 
 ## Bakong SIT and production
 

@@ -81,7 +81,6 @@ export function OrderPage() {
   const heading = pending ? 'Awaiting payment' : order.status === 'paid' ? 'Order confirmation' : 'Order ' + order.status;
   return <div className="page-shell commerce-page"><h1>{heading}</h1>
     <p>{order.id}</p><p>Created <time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleString()}</time></p>
-    {connectionError}
     <section className="khqr-payment-card" aria-label="KHQR payment">
       <header className="khqr-card-header" aria-hidden="true">KHQR</header>
       <div className="khqr-card-body">
@@ -91,6 +90,7 @@ export function OrderPage() {
         <div className="khqr-card-status">
         <h2 id="payment-title" className="detail-subheading">Payment status</h2>
         <p className="payment-status" role="status" aria-live="polite">{pending ? 'Awaiting KHQR payment' : order.status === 'paid' ? 'Payment confirmed' : 'Payment not confirmed'}</p>
+        {connectionError}
         {order.mockMode && <p>Simulation only - no money will move</p>}
         {pending && <>
           <p>Payment currency: <strong>{order.currency}</strong></p>

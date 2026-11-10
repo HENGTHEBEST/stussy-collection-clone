@@ -134,7 +134,9 @@ it('offers retry on connection failure without marking payment failed', async ()
 it('retains pending details after a poll error and retries through the API', async () => {
   get.mockResolvedValueOnce(order).mockRejectedValueOnce(new ApiError('Unavailable', 503)).mockResolvedValueOnce(paid);
   show(); await settle(); await act(async () => vi.advanceTimersByTimeAsync(5000));
-  expect(screen.getByRole('alert')).toBeVisible(); expect(screen.getByText('Server snapshot tee')).toBeVisible();
+  const card = within(screen.getByRole('region', { name: 'KHQR payment' }));
+  expect(card.getByRole('alert')).toBeVisible(); expect(card.getByRole('button', { name: 'Retry' })).toBeVisible();
+  expect(screen.getByText('Server snapshot tee')).toBeVisible();
   expect(screen.queryByText('Payment failed')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Retry' })); await settle(); expect(screen.getByRole('status')).toHaveTextContent('Payment confirmed');
 });
