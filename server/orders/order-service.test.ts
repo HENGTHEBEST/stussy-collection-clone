@@ -20,6 +20,41 @@ beforeEach(() => {
 afterEach(() => repository.close());
 
 describe('OrderService', () => {
+  it('uses the trusted one-cent policy for the order, storage, and provider amount', async () => {
+    service = new OrderService(repository, gateway, () => time, { unitPriceMinor: 1, freeShipping: true });
+    const createPayment = vi.spyOn(gateway, 'createPayment');
+    const input = createOrderRequest();
+    Object.assign(input, { totalMinor: 999999, shippingMinor: 999999 });
+    Object.assign(input.lines[0], { unitPriceMinor: 999999 });
+    const order = await service.createOrder(input);
+    expect(order).toMatchObject({
+      currency: 'USD', subtotalMinor: 2, shippingMinor: 0, totalMinor: 2,
+      lines: [{ unitPriceMinor: 1, quantity: 2 }], payment: { status: 'pending' },
+    });
+    expect(repository.findById(order.id)).toMatchObject({ subtotalMinor: 2, shippingMinor: 0, totalMinor: 2 });
+    expect(createPayment).toHaveBeenCalledExactlyOnceWith({
+      orderId: order.id, totalMinor: 2, currency: 'USD', expiresAt: fixedExpiry,
+    });
+    const payment = repository.findById(order.id)!.payment;
+    expect(JSON.parse(payment.qrPayload.slice('mock-khqr:'.length))).toMatchObject({ totalMinor: 2, currency: 'USD' });
+  });
+
+  it.each([
+    { productId: 999, size: 'M', color: 'Black', quantity: 1 },
+    { productId: 6, size: 'M', color: 'Black', quantity: 1 },
+    { productId: 1, size: 'XXL', color: 'Black', quantity: 1 },
+    { productId: 1, size: 'M', color: 'White', quantity: 1 },
+    { productId: 1, size: 'M', color: 'Black', quantity: 0 },
+    { productId: 1, size: 'M', color: 'Black', quantity: 11 },
+    { productId: 1, size: 'M', color: 'Black', quantity: 1.5 },
+  ])('rejects invalid acceptance-price items before provider or storage: %j', async line => {
+    service = new OrderService(repository, gateway, () => time, { unitPriceMinor: 1, freeShipping: true });
+    const createPayment = vi.spyOn(gateway, 'createPayment');
+    await expect(service.createOrder(createOrderRequest({ lines: [line] as CreateOrderRequest['lines'] }))).rejects.toThrow();
+    expect(createPayment).not.toHaveBeenCalled();
+    expect(repository.findByRequestId(createOrderRequest().requestId)).toBeNull();
+  });
+
   it('ignores browser money and status, computes trusted USD totals, and persists trimmed details', async () => {
     const input = createOrderRequest();
     input.customer = { name: ' Sam Test ', email: ' sam@example.test ', phone: ' +85512345678 ' };

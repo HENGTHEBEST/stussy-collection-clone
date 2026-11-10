@@ -1,5 +1,6 @@
 import { products } from '../../shared/catalog.js';
 import type { CheckoutLineInput, DeliveryMethod, PublicOrderLine } from '../../shared/commerce.js';
+import type { PricingPolicy } from '../config.js';
 
 export class OrderPricingError extends Error {}
 
@@ -10,7 +11,11 @@ export interface PricedOrder {
   totalMinor: number;
 }
 
-export function priceOrder(lines: CheckoutLineInput[], delivery: DeliveryMethod): PricedOrder {
+export function priceOrder(
+  lines: CheckoutLineInput[],
+  delivery: DeliveryMethod,
+  policy: PricingPolicy = { unitPriceMinor: null, freeShipping: false },
+): PricedOrder {
   if (!Array.isArray(lines) || lines.length === 0) throw new OrderPricingError('Cart is empty.');
 
   const pricedLines = lines.map((line) => {
@@ -29,12 +34,12 @@ export function priceOrder(lines: CheckoutLineInput[], delivery: DeliveryMethod)
       size: line.size,
       color: line.color,
       quantity: line.quantity,
-      unitPriceMinor: Math.round(product.demoPrice * 100),
+      unitPriceMinor: policy.unitPriceMinor ?? Math.round(product.demoPrice * 100),
     } satisfies PublicOrderLine;
   });
 
   const subtotalMinor = pricedLines.reduce((sum, line) => sum + line.unitPriceMinor * line.quantity, 0);
   const baseShipping = subtotalMinor >= 15000 ? 0 : 1200;
-  const shippingMinor = delivery === 'express' ? baseShipping + 800 : baseShipping;
+  const shippingMinor = policy.freeShipping ? 0 : delivery === 'express' ? baseShipping + 800 : baseShipping;
   return { lines: pricedLines, subtotalMinor, shippingMinor, totalMinor: subtotalMinor + shippingMinor };
 }

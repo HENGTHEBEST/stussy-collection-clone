@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce.js';
 import { priceOrder } from '../catalog/order-pricing.js';
+import type { PricingPolicy } from '../config.js';
 import { MockBakongGateway } from '../payments/mock-bakong-gateway.js';
 import type { PaymentGateway } from '../payments/payment-gateway.js';
 import type { OrderRepository, StoredOrder } from './order-repository.js';
@@ -86,6 +87,7 @@ export class OrderService {
     private readonly repository: OrderRepository,
     private readonly gateway: PaymentGateway,
     private readonly now: () => Date = () => new Date(),
+    private readonly pricing: PricingPolicy = { unitPriceMinor: null, freeShipping: false },
   ) {}
 
   async createOrder(input: CreateOrderRequest): Promise<PublicOrder> {
@@ -104,7 +106,7 @@ export class OrderService {
   }
 
   private async persistOrder(request: CreateOrderRequest): Promise<PublicOrder> {
-    const pricing = priceOrder(request.lines, request.delivery);
+    const pricing = priceOrder(request.lines, request.delivery, this.pricing);
     const id = randomUUID();
     const createdAt = this.now().toISOString();
     const expiresAt = new Date(Date.parse(createdAt) + 10 * 60 * 1000).toISOString();
