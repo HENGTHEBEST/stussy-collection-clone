@@ -60,7 +60,7 @@ describe('BakongGateway', () => {
     expect(url).toBe('https://api.example.test/v1/check_transaction_by_md5');
     expect(init).toMatchObject({ method: 'POST', body: JSON.stringify({ md5 }) });
     expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/json');
-    expect((init?.headers as Record<string, string>).Authorization.startsWith('Bearer ')).toBe(true);
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer synthetic-secret-token');
     expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -97,6 +97,14 @@ describe('BakongGateway', () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => response({ responseCode: 1, responseMessage: 'Transaction not found.', data: null }));
     await expect(new BakongGateway(credentials, fetcher, () => new Date(instant)).checkPayment(checkInput)).resolves.toEqual({ status: 'pending' });
     await expect(new BakongGateway(credentials, fetcher, () => new Date(expiresAt)).checkPayment(checkInput)).resolves.toEqual({ status: 'expired' });
+  });
+
+  it('rejects a code-1 response unless its data is explicitly null', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response({
+      responseCode: 1, responseMessage: 'Transaction not found.', data: { hash },
+    }));
+    await expect(new BakongGateway(credentials, fetcher, () => new Date(instant)).checkPayment(checkInput))
+      .rejects.toThrow('Invalid Bakong response.');
   });
 
   it('sanitizes transport and KHQR generation errors', async () => {

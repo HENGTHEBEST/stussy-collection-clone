@@ -75,6 +75,7 @@ export class BakongGateway implements PaymentGateway {
     if (!isRecord(body)) throw new Error('Invalid Bakong response.');
 
     if (body.responseCode === 1) {
+      if (body.data !== null) throw new Error('Invalid Bakong response.');
       if (typeof body.responseMessage === 'string'
         && body.responseMessage.trim().toLowerCase() === 'transaction failed.') {
         return { status: 'failed' };
