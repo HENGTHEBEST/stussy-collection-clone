@@ -128,7 +128,12 @@ export class OrderService {
     if (Date.parse(updatedAt) >= Date.parse(order.payment.expiresAt)) {
       this.repository.markExpired(id, updatedAt);
     } else {
-      const result = await this.gateway.checkPayment(order.payment.providerReference, order.payment.expiresAt);
+      const result = await this.gateway.checkPayment({
+        providerReference: order.payment.providerReference,
+        expiresAt: order.payment.expiresAt,
+        totalMinor: order.totalMinor,
+        currency: order.currency,
+      });
       const checkedAt = this.now().toISOString();
       if (Date.parse(checkedAt) >= Date.parse(order.payment.expiresAt)) {
         this.repository.markExpired(id, checkedAt);

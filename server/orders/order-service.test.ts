@@ -161,6 +161,18 @@ describe('OrderService', () => {
     expect(repository.findById(order.id)?.status).toBe('paid');
   });
 
+  it('checks payment with the stored reference, expiry, total, and currency', async () => {
+    const order = await service.createOrder(createOrderRequest());
+    const check = vi.spyOn(gateway, 'checkPayment');
+    await service.getOrder(order.id);
+    expect(check).toHaveBeenCalledExactlyOnceWith({
+      providerReference: order.payment.providerReference,
+      expiresAt: order.payment.expiresAt,
+      totalMinor: order.totalMinor,
+      currency: order.currency,
+    });
+  });
+
   it('expires at the deadline before accepting simulation or polling a provider', async () => {
     const order = await service.createOrder(createOrderRequest());
     time = new Date(fixedExpiry);
@@ -184,7 +196,7 @@ describe('OrderService', () => {
   it('cannot simulate success for a provider that does not support mock simulation', async () => {
     const provider: PaymentGateway = {
       createPayment: order => gateway.createPayment(order),
-      checkPayment: (reference, expiry) => gateway.checkPayment(reference, expiry),
+      checkPayment: input => gateway.checkPayment(input),
     };
     const liveService = new OrderService(repository, provider, () => time);
     const order = await liveService.createOrder(createOrderRequest());

@@ -24,17 +24,18 @@ describe('MockBakongGateway', () => {
   it('only pays the simulated reference and keeps transaction hashes stable', async () => {
     const gateway = new MockBakongGateway(() => new Date(instant));
     const payment = await gateway.createPayment(order);
-    expect(await gateway.checkPayment(payment.providerReference, expiresAt)).toEqual({ status: 'pending' });
+    const input = { providerReference: payment.providerReference, expiresAt, totalMinor: order.totalMinor, currency: 'USD' as const };
+    expect(await gateway.checkPayment(input)).toEqual({ status: 'pending' });
     gateway.simulateSuccess(payment.providerReference);
-    const paid = await gateway.checkPayment(payment.providerReference, expiresAt);
+    const paid = await gateway.checkPayment(input);
     expect(paid).toMatchObject({ status: 'paid', transactionHash: expect.stringMatching(/^mock-/) });
-    expect(await gateway.checkPayment(payment.providerReference, expiresAt)).toEqual(paid);
-    expect(await gateway.checkPayment('other', expiresAt)).toEqual({ status: 'pending' });
+    expect(await gateway.checkPayment(input)).toEqual(paid);
+    expect(await gateway.checkPayment({ ...input, providerReference: 'other' })).toEqual({ status: 'pending' });
   });
 
   it('expires at the deadline even when success was simulated', async () => {
     const gateway = new MockBakongGateway(() => new Date(expiresAt));
     gateway.simulateSuccess('mock-order-123');
-    expect(await gateway.checkPayment('mock-order-123', expiresAt)).toEqual({ status: 'expired' });
+    expect(await gateway.checkPayment({ providerReference: 'mock-order-123', expiresAt, totalMinor: order.totalMinor, currency: 'USD' })).toEqual({ status: 'expired' });
   });
 });

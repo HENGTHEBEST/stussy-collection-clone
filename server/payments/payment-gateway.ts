@@ -10,7 +10,10 @@ export interface GatewayPayment {
 export interface GatewayCheckResult {
   status: PaymentStatus; transactionHash?: string;
 }
+export interface GatewayCheckInput {
+  providerReference: string; expiresAt: string; totalMinor: number; currency: 'USD';
+}
 export interface PaymentGateway {
   createPayment(order: GatewayOrder): Promise<GatewayPayment>;
-  checkPayment(providerReference: string, expiresAt: string): Promise<GatewayCheckResult>;
+  checkPayment(input: GatewayCheckInput): Promise<GatewayCheckResult>;
 }

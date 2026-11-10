@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import QRCode from 'qrcode';
-import type { GatewayCheckResult, GatewayOrder, GatewayPayment, PaymentGateway } from './payment-gateway.js';
+import type { GatewayCheckInput, GatewayCheckResult, GatewayOrder, GatewayPayment, PaymentGateway } from './payment-gateway.js';
 
 // Test/demo provider only: these QR codes cannot initiate a real Bakong payment.
 export class MockBakongGateway implements PaymentGateway {
@@ -21,10 +21,10 @@ export class MockBakongGateway implements PaymentGateway {
     };
   }
 
-  async checkPayment(providerReference: string, expiresAt: string): Promise<GatewayCheckResult> {
-    if (this.now().getTime() >= Date.parse(expiresAt)) return { status: 'expired' };
-    return this.simulatedReferences.has(providerReference)
-      ? { status: 'paid', transactionHash: 'mock-tx-' + providerReference }
+  async checkPayment(input: GatewayCheckInput): Promise<GatewayCheckResult> {
+    if (this.now().getTime() >= Date.parse(input.expiresAt)) return { status: 'expired' };
+    return this.simulatedReferences.has(input.providerReference)
+      ? { status: 'paid', transactionHash: 'mock-tx-' + input.providerReference }
       : { status: 'pending' };
   }
 
