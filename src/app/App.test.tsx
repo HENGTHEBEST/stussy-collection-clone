@@ -65,7 +65,7 @@ it('loads a server order directly at its registered route without local storage'
   render(<App initialEntries={['/order/direct-order']} />);
   expect(await screen.findByRole('heading', { name: 'Order confirmation' })).toBeVisible();
   expect(screen.getByText('Server snapshot tee')).toBeVisible();
-  expect(screen.getByText('$108.00')).toBeVisible();
+  expect(within(screen.getByRole('region', { name: 'KHQR payment' })).getByText('$108.00')).toBeVisible();
   expect(getOrder).toHaveBeenCalledWith('direct-order', expect.any(AbortSignal));
 });
 

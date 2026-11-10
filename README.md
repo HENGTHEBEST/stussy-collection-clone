@@ -1,6 +1,6 @@
 # Stussy Collection Showcase
 
-An editorial React storefront with a server-backed, simulated Bakong KHQR checkout. Catalog prices, stock and delivery are illustrative.
+An editorial React storefront with a server-backed Bakong KHQR checkout. Catalog prices, stock and delivery are illustrative.
 
 ## Local mock checkout
 
@@ -32,15 +32,12 @@ The API binds to `127.0.0.1:8787`. Vite proxies `/api` to it. Keep `APP_ORIGIN` 
 
 Keep `data/`, `.env` and `.env.local` out of Git. Stop the API before removing a local database to reset mock orders. The mock provider's pending simulation references live in memory, while completed paid state persists in SQLite. No email, carrier, live inventory or real payment is connected.
 
-## Before enabling Bakong SIT
+## Bakong SIT and production
 
-SIT and production modes currently fail closed: changing `PAYMENT_MODE` or providing a token does not enable real payments. These inputs and implementation work are still required:
+Keep `PAYMENT_MODE=mock` for local development. SIT and production fail closed unless every server-only Bakong variable from `.env.example` is set. Never place the API token in a `VITE_*` variable, browser storage, source file or chat.
 
-1. A Bakong SIT API token and confirmed official SIT base URL, stored only in server configuration (planned `BAKONG_API_TOKEN` and `BAKONG_API_BASE_URL`).
-2. A confirmed merchant/Bakong account ID, approved merchant name and city, and agreed currency/price policy. The current catalog and server support USD only.
-3. An official gateway adapter implementing compliant dynamic KHQR creation and server-side status verification, including destination account, exact amount/currency, expiration and unique transaction checks. Remove/disable mock controls outside mock mode.
-4. Contract and SIT acceptance tests for success, not-found, failed, expired, wrong amount, wrong currency and duplicate transactions.
+The temporary live-payment test policy charges USD $0.01 for each item unit and ignores shipping. For example, three units total USD $0.03. The server generates a dynamic KHQR and marks an order paid only after the provider response matches the stored recipient, USD amount, currency and unique transaction hash.
 
-Production additionally requires bank commercial approval, production credentials and limits, HTTPS, durable storage/backups, monitoring, reconciliation and a small live-payment acceptance test. SQLite requires a single durable Node host or replacement with a shared production repository before multiple instances.
+Real acceptance is manual and user-controlled: verify the displayed merchant and amount before scanning, then confirm the payment in the banking app. Automated checks never scan a QR or authorize a transfer. Production additionally requires bank commercial approval, production credentials and limits, HTTPS, durable storage/backups, monitoring and reconciliation. SQLite requires a single durable Node host or replacement with a shared production repository before multiple instances.
 
 See [the checkout design](docs/superpowers/specs/2026-11-09-bakong-khqr-checkout-design.md) and [verification evidence](docs/verification/2026-11-07-stussy-store-verification.md) for scope and limits.

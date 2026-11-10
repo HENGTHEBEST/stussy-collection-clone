@@ -41,8 +41,7 @@ it('loads a direct route without local storage and renders exact server totals a
   show(); expect(screen.getByRole('heading', { name: 'Loading order' })).toBeVisible(); await settle();
   expect(screen.getByText('Simulation only - no money will move')).toBeVisible();
   expect(screen.getByRole('img', { name: 'Simulated Bakong KHQR payment code' })).toHaveAttribute('src', order.payment.qrDataUrl);
-  expect(screen.getByText('$108.00')).toBeVisible();
-  expect(within(screen.getByRole('region', { name: 'Payment status' })).getByText('Amount due: $108.00')).toBeVisible();
+  expect(within(screen.getByRole('region', { name: 'KHQR payment' })).getByText('$108.00')).toBeVisible();
   expect(screen.getByText('USD')).toBeVisible();
   expect(screen.getByText('Time remaining: 15:00')).toBeVisible();
   expect(screen.getByText('Unit price: $48.00')).toBeVisible();
@@ -107,9 +106,14 @@ it('counts down each second but waits for server expiration before changing stat
 });
 
 it('does not show a simulation control for a non-mock order', async () => {
-  get.mockResolvedValue({ ...order, mockMode: false }); show(); await settle();
-  expect(screen.queryByRole('button', { name: 'Simulate successful payment' })).not.toBeInTheDocument();
-  expect(screen.queryByText('Simulation only - no money will move')).not.toBeInTheDocument();
+  get.mockResolvedValue({ ...order, mockMode: false, subtotalMinor: 1, shippingMinor: 0, totalMinor: 1 }); show(); await settle();
+  const card = within(screen.getByRole('region', { name: 'KHQR payment' }));
+  expect(card.getByText('KHQR')).toBeVisible();
+  expect(card.getByText('Stussy Collection')).toBeVisible();
+  expect(card.getByText('$0.01')).toBeVisible();
+  expect(card.getByRole('img', { name: 'Bakong KHQR payment code' })).toBeVisible();
+  expect(card.queryByText(/ABA|simulation/i)).not.toBeInTheDocument();
+  expect(card.queryByRole('button', { name: /simulate/i })).not.toBeInTheDocument();
 });
 
 it('renders not-found for a 404 response', async () => {

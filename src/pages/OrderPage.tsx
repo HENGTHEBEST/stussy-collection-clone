@@ -82,14 +82,17 @@ export function OrderPage() {
   return <div className="page-shell commerce-page"><h1>{heading}</h1>
     <p>{order.id}</p><p>Created <time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleString()}</time></p>
     {connectionError}
-    <section className="payment-panel" aria-labelledby="payment-title">
-      {pending && <div className="khqr-frame"><img src={order.payment.qrDataUrl} alt={order.mockMode ? 'Simulated Bakong KHQR payment code' : 'Bakong KHQR payment code'} /></div>}
-      <div>
+    <section className="khqr-payment-card" aria-label="KHQR payment">
+      <header className="khqr-card-header" aria-hidden="true">KHQR</header>
+      <div className="khqr-card-body">
+        <p className="khqr-merchant">{order.merchantName}</p>
+        <p className="khqr-amount">{formatMinorCurrency(order.totalMinor, order.currency)}</p>
+        {pending && <div className="khqr-frame"><img src={order.payment.qrDataUrl} alt={order.mockMode ? 'Simulated Bakong KHQR payment code' : 'Bakong KHQR payment code'} /></div>}
+        <div className="khqr-card-status">
         <h2 id="payment-title" className="detail-subheading">Payment status</h2>
         <p className="payment-status" role="status" aria-live="polite">{pending ? 'Awaiting KHQR payment' : order.status === 'paid' ? 'Payment confirmed' : 'Payment not confirmed'}</p>
         {order.mockMode && <p>Simulation only - no money will move</p>}
         {pending && <>
-          <p>Amount due: {formatMinorCurrency(order.totalMinor, order.currency)}</p>
           <p>Payment currency: <strong>{order.currency}</strong></p>
           <p>Expires <time dateTime={order.payment.expiresAt}>{new Date(order.payment.expiresAt).toLocaleString()}</time></p>
           <p className="payment-countdown">Time remaining: {countdown}</p>
@@ -97,6 +100,7 @@ export function OrderPage() {
           {order.mockMode && <button type="button" disabled={simulating || remaining === 0 || state !== 'ready'} onClick={() => void refresh(true)}>Simulate successful payment</button>}
         </>}
         {!pending && order.status !== 'paid' && <><p>No payment confirmation is available for this order.</p><Link to="/checkout">Return to checkout</Link></>}
+        </div>
       </div>
     </section>
     <p>{order.deliveryLabel}</p>

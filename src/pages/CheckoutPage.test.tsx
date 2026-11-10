@@ -105,7 +105,7 @@ it('creates one server order, preserves the cart while pending, then clears and 
   expect(screen.getByText(order.id)).toBeVisible();
   expect(screen.getByText('Unit price: $48.00')).toBeVisible();
   expect(screen.getByText('Line total: $96.00')).toBeVisible();
-  expect(screen.getByText('$120.00')).toBeVisible();
+  expect(within(screen.getByRole('region', { name: 'KHQR payment' })).getByText('$120.00')).toBeVisible();
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
   expect(localStorage.getItem('stussy-demo-order-v1')).toBeNull();
   expect(JSON.stringify(localStorage)).not.toContain('buyer@example.test');
