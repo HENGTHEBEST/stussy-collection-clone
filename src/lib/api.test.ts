@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce';
-import { ApiError, createOrder, getOrder, simulateMockPayment } from './api';
+import { ApiError, createOrder, getCheckoutPricing, getOrder, simulateMockPayment } from './api';
 
 const input: CreateOrderRequest = {
   requestId: '019a6215-d300-4000-8000-000000000001',
@@ -18,6 +18,16 @@ const order: PublicOrder = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('shop API client', () => {
+  it('loads and validates the public checkout pricing contract', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ unitPriceMinor: 1, freeShipping: true })));
+    vi.stubGlobal('fetch', fetch);
+    expect(await getCheckoutPricing()).toEqual({ unitPriceMinor: 1, freeShipping: true });
+    expect(fetch).toHaveBeenCalledWith('/api/checkout-pricing', { signal: undefined });
+  });
+  it.each([null, {}, { unitPriceMinor: 0, freeShipping: true }, { unitPriceMinor: 1, freeShipping: 'true' }])('rejects malformed public pricing: %j', async pricing => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(pricing))));
+    await expect(getCheckoutPricing()).rejects.toMatchObject({ status: 500, message: 'The shop service is temporarily unavailable.' });
+  });
   it('posts a typed checkout request as JSON and returns the server order', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(order), { status: 201 }));
     vi.stubGlobal('fetch', fetch);

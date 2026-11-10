@@ -51,3 +51,8 @@ export interface PublicOrder {
   lines: PublicOrderLine[]; payment: PublicPaymentAttempt;
   mockMode: boolean;
 }
+
+export interface CheckoutPricing {
+  unitPriceMinor: number | null;
+  freeShipping: boolean;
+}

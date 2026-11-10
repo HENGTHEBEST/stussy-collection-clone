@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import type { CreateOrderRequest } from '../../shared/commerce';
-import { formatCurrency, OrderSummary } from '../components/commerce/OrderSummary';
+import type { CheckoutPricing, CreateOrderRequest } from '../../shared/commerce';
+import { formatMinorCurrency, OrderSummary } from '../components/commerce/OrderSummary';
 import { SafeImage } from '../components/shared/SafeImage';
 import { products } from '../data/products';
-import { ApiError, createOrder } from '../lib/api';
+import { ApiError, createOrder, getCheckoutPricing } from '../lib/api';
 import { validateCheckout, type CheckoutErrors, type CheckoutFields } from '../lib/checkout';
 import { useCart } from '../state/CartProvider';
 import { useFeedback } from '../state/FeedbackProvider';
@@ -26,12 +26,23 @@ export function CheckoutPage() {
   const [errors, setErrors] = useState<CheckoutErrors>({});
   const [networkError, setNetworkError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [pricing, setPricing] = useState<CheckoutPricing | null>(null);
+  const [pricingError, setPricingError] = useState('');
   const submitted = useRef(false);
   const lastRequest = useRef<{ payload: string; request: CreateOrderRequest } | null>(null);
   const active = useRef(false);
   useEffect(() => {
     active.current = true;
     return () => { active.current = false; };
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    void getCheckoutPricing(controller.signal).then(setPricing).catch((error: unknown) => {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        setPricingError(error instanceof ApiError ? error.message : 'The shop service is temporarily unavailable.');
+      }
+    });
+    return () => controller.abort();
   }, []);
   const form = useRef<HTMLFormElement>(null);
 
@@ -114,11 +125,11 @@ export function CheckoutPage() {
           return product ? [<article className="checkout-item" key={`${line.productId}:${line.color}:${line.size}`}>
             <SafeImage src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} />
             <div><h3>{product.name}</h3><p>{line.color} / {line.size}</p><p>Quantity {line.quantity}</p></div>
-            <strong>{formatCurrency(line.unitPrice * line.quantity)}</strong>
+            <strong>{pricing ? formatMinorCurrency((pricing.unitPriceMinor ?? Math.round(line.unitPrice * 100)) * line.quantity, 'USD') : pricingError ? 'Price unavailable' : 'Loading price…'}</strong>
           </article>] : [];
         })}</div>
-        <OrderSummary lines={lines} showCheckoutLink={false} />
-        <button type="submit" form="checkout-form" disabled={submitting}>Continue to KHQR</button>
+        {pricing ? <OrderSummary lines={lines} showCheckoutLink={false} pricing={pricing} /> : <p>{pricingError || 'Loading checkout pricing…'}</p>}
+        <button type="submit" form="checkout-form" disabled={submitting || !pricing}>Continue to KHQR</button>
         <p className="checkout-payment-note">Next, scan the KHQR code to complete payment.</p>
       </aside>
     </form>

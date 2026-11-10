@@ -29,6 +29,9 @@ export function createApp({ service, config }: { service: OrderService; config: 
   app.get('/api/health', (_req, res) => {
     res.json({ ready: true, paymentMode: config.paymentMode });
   });
+  app.get('/api/checkout-pricing', (_req, res) => {
+    res.json(config.pricing);
+  });
   app.post('/api/orders', async (req, res) => {
     res.status(201).json(await service.createOrder(req.body));
   });

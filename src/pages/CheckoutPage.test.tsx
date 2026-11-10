@@ -19,13 +19,19 @@ const inputs = {
   Name: 'Buyer', Email: 'buyer@example.test', Phone: '+855 (12) 345-678',
   'Street address': 'Street 1', City: 'Phnom Penh', Region: 'Phnom Penh', 'Postal code': '12000', Country: 'Cambodia',
 };
+const pricing = { unitPriceMinor: 1, freeShipping: true };
+function withPricing(handler: (url: string, options?: RequestInit) => Promise<Response> | Response = async () => { throw new TypeError('Unexpected order request'); }) {
+  return vi.fn((url: string, options?: RequestInit) => url === '/api/checkout-pricing'
+    ? Promise.resolve(new Response(JSON.stringify(pricing))) : handler(url, options));
+}
 function seedCart() { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ version: 1, value: { lines: [line] } })); }
 function fillCheckout() {
   for (const [label, value] of Object.entries(inputs)) fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
   fireEvent.change(screen.getByLabelText('Delivery option'), { target: { value: 'express' } });
 }
 function getForm() { return screen.getByRole('button', { name: 'Continue to KHQR' }).closest('form')!; }
-beforeEach(() => { localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); });
+async function waitForPricing() { await waitFor(() => expect(screen.getByRole('button', { name: 'Continue to KHQR' })).toBeEnabled()); }
+beforeEach(() => { localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); vi.stubGlobal('fetch', withPricing()); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/'); });
 
 it('replace-redirects empty checkout to cart without an actionable form', () => {
@@ -38,9 +44,10 @@ it('replace-redirects empty checkout to cart without an actionable form', () => 
   expect(window.history.length).toBe(historyLength);
 });
 
-it('focuses the first invalid field and associates errors with one polite announcement', () => {
-  const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+it('focuses the first invalid field and associates errors with one polite announcement', async () => {
+  const fetch = withPricing(); vi.stubGlobal('fetch', fetch);
   seedCart(); render(<App initialEntries={['/checkout']} />);
+  await waitForPricing();
   fireEvent.submit(getForm());
   expect(screen.getByLabelText('Name', { exact: true })).toHaveFocus();
   for (const label of Object.keys(inputs)) {
@@ -50,13 +57,14 @@ it('focuses the first invalid field and associates errors with one polite announ
   }
   expect(screen.getByRole('status')).toHaveTextContent(/highlighted fields/i);
   expect(document.querySelectorAll('[aria-live], [role="alert"], [role="status"]')).toHaveLength(1);
-  expect(fetch).not.toHaveBeenCalled();
+  expect(fetch.mock.calls.filter(([url]) => url === '/api/orders')).toHaveLength(0);
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
 });
 
-it('shows contact and address fields with KHQR copy and no removed payment fields', () => {
+it('shows contact and address fields with KHQR copy and no removed payment fields', async () => {
   seedCart(); render(<App initialEntries={['/checkout']} />);
   const main = within(screen.getByRole('main'));
+  await main.findByText(/estimates only/i);
   expect(main.getByRole('button', { name: 'Continue to KHQR' })).toBeVisible();
   expect(main.getByText(/estimates only/i)).toBeVisible();
   for (const label of ['Cardholder name', 'Demo card number', 'Expiry (MM/YY)', 'CVC']) {
@@ -65,35 +73,52 @@ it('shows contact and address fields with KHQR copy and no removed payment field
   expect(screen.getByRole('main').textContent).not.toMatch(/card|4242|no personal.*saved/i);
 });
 
-it('reviews cart items as compact product thumbnails before KHQR', () => {
+it('reviews compact cart items with the server one-cent price and free shipping', async () => {
+  vi.stubGlobal('fetch', withPricing());
   seedCart(); render(<App initialEntries={['/checkout']} />);
   const review = within(screen.getByRole('complementary', { name: 'Review your order' }));
   expect(review.getByRole('img', { name: /8-Ball Tee/ })).toHaveAttribute('src', '/assets/lookbook-8-ball-black.jpg');
   expect(review.getByText('Black / M')).toBeVisible();
   expect(review.getByText('Quantity 2')).toBeVisible();
-  expect(within(review.getByRole('article')).getByText('$90.00')).toBeVisible();
+  expect(await within(review.getByRole('article')).findByText('$0.02')).toBeVisible();
+  expect(review.getByText('Free')).toBeVisible();
+  expect(review.getByText('Total')).toBeVisible();
+  expect(review.getAllByText('$0.02')).toHaveLength(3);
+  expect(review.queryByText('$90.00')).not.toBeInTheDocument();
   expect(review.queryByRole('link', { name: 'Checkout' })).not.toBeInTheDocument();
   expect(review.getByRole('button', { name: 'Continue to KHQR' })).toHaveAttribute('form', 'checkout-form');
 });
 
+it('fails closed without showing catalog prices when checkout pricing is unavailable', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('private pricing failure')));
+  seedCart(); render(<App initialEntries={['/checkout']} />);
+  const review = within(screen.getByRole('complementary', { name: 'Review your order' }));
+  expect(await review.findByText('Price unavailable')).toBeVisible();
+  expect(review.getByText('The shop service is temporarily unavailable.')).toBeVisible();
+  expect(review.getByRole('button', { name: 'Continue to KHQR' })).toBeDisabled();
+  expect(review.queryByText('$90.00')).not.toBeInTheDocument();
+  expect(review.queryByText(/private pricing failure/)).not.toBeInTheDocument();
+});
+
 it('creates one server order, preserves the cart while pending, then clears and replace-navigates with the order', async () => {
   let resolve!: (response: Response) => void;
-  const fetch = vi.fn().mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));
+  const fetch = withPricing(() => new Promise<Response>((done) => { resolve = done; }));
   vi.stubGlobal('fetch', fetch);
   const requestId = '019a6215-d300-4000-8000-000000000002';
   const randomUUID = vi.spyOn(crypto, 'randomUUID').mockReturnValue(requestId);
   seedCart(); window.history.replaceState(null, '', '/checkout');
   const historyLength = window.history.length;
-  render(<App />); fillCheckout();
+  render(<App />); await waitForPricing(); fillCheckout();
   const form = getForm();
   act(() => { fireEvent.submit(form); fireEvent.submit(form); });
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls.filter(([url]) => url === '/api/orders')).toHaveLength(1);
   expect(randomUUID).toHaveBeenCalledTimes(1);
   expect(form).toHaveAttribute('aria-busy', 'true');
   expect(screen.getByRole('button', { name: 'Continue to KHQR' })).toBeDisabled();
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
   expect(window.location.pathname).toBe('/checkout');
-  expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+  const submission = fetch.mock.calls.find(([url]) => url === '/api/orders')!;
+  expect(JSON.parse(submission[1]!.body as string)).toEqual({
     requestId, customer: { name: 'Buyer', email: 'buyer@example.test', phone: '+855 (12) 345-678' },
     address: { street: 'Street 1', city: 'Phnom Penh', region: 'Phnom Penh', postalCode: '12000', country: 'Cambodia' },
     delivery: 'express', lines: [{ productId: 1, size: 'M', color: 'Black', quantity: 2 }],
@@ -112,11 +137,12 @@ it('creates one server order, preserves the cart while pending, then clears and 
 });
 
 it('keeps the cart and form on network failure, announces once, and allows retry', async () => {
-  const fetch = vi.fn().mockRejectedValueOnce(new TypeError('private transport details'))
+  const orderFetch = vi.fn().mockRejectedValueOnce(new TypeError('private transport details'))
     .mockResolvedValueOnce(new Response(JSON.stringify(order), { status: 201 }))
     .mockResolvedValueOnce(new Response(JSON.stringify(order), { status: 200 }));
+  const fetch = withPricing(orderFetch);
   vi.stubGlobal('fetch', fetch);
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  seedCart(); render(<App initialEntries={['/checkout']} />); await waitForPricing(); fillCheckout();
   const form = getForm(); fireEvent.submit(form);
   await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
   const message = 'The shop service is temporarily unavailable.';
@@ -140,7 +166,7 @@ it('retries a committed order with the exact same payload after losing the first
   const createPayment = vi.spyOn(gateway, 'createPayment');
   const service = new OrderService(repository, gateway);
   const committed: PublicOrder[] = [];
-  const fetch = vi.fn(async (url: string, options?: RequestInit) => {
+  const orderFetch = vi.fn(async (url: string, options?: RequestInit) => {
     if (options?.method === 'POST') {
       const created = await service.createOrder(JSON.parse(options.body as string) as CreateOrderRequest);
       committed.push(created);
@@ -149,9 +175,10 @@ it('retries a committed order with the exact same payload after losing the first
     }
     return new Response(JSON.stringify(await service.getOrder(url.split('/').at(-1)!)), { status: 200 });
   });
+  const fetch = withPricing(orderFetch);
   vi.stubGlobal('fetch', fetch);
   try {
-    seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+    seedCart(); render(<App initialEntries={['/checkout']} />); await waitForPricing(); fillCheckout();
     const form = getForm(); fireEvent.submit(form);
     await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
     expect(repository.findById(committed[0].id)).not.toBeNull();
@@ -175,19 +202,20 @@ it.each([
   ['Street address', 'Street 2'],
   ['Delivery option', 'standard'],
 ])('uses a fresh request ID after changing %s for a retry', async (label, value) => {
-  const fetch = vi.fn().mockRejectedValue(new TypeError('Response lost'));
+  const orderFetch = vi.fn().mockRejectedValue(new TypeError('Response lost'));
+  const fetch = withPricing(orderFetch);
   vi.stubGlobal('fetch', fetch);
   const randomUUID = vi.spyOn(crypto, 'randomUUID')
     .mockReturnValueOnce('019a6215-d300-4000-8000-000000000002')
     .mockReturnValueOnce('019a6215-d300-4000-8000-000000000003');
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  seedCart(); render(<App initialEntries={['/checkout']} />); await waitForPricing(); fillCheckout();
   const form = getForm(); fireEvent.submit(form);
   await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
   fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
   fireEvent.submit(form);
   await waitFor(() => expect(form).toHaveAttribute('aria-busy', 'false'));
-  const first = JSON.parse(fetch.mock.calls[0][1].body) as CreateOrderRequest;
-  const retry = JSON.parse(fetch.mock.calls[1][1].body) as CreateOrderRequest;
+  const first = JSON.parse(orderFetch.mock.calls[0][1].body) as CreateOrderRequest;
+  const retry = JSON.parse(orderFetch.mock.calls[1][1].body) as CreateOrderRequest;
   expect(retry.requestId).not.toBe(first.requestId);
   expect({ ...retry, requestId: first.requestId }).not.toEqual(first);
   expect(randomUUID).toHaveBeenCalledTimes(2);
@@ -195,8 +223,8 @@ it.each([
 });
 
 it('shows a public service validation error without clearing the cart', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'invalid_checkout', message: 'Check the highlighted checkout information.' } }), { status: 400 })));
-  seedCart(); render(<App initialEntries={['/checkout']} />); fillCheckout();
+  vi.stubGlobal('fetch', withPricing(async () => new Response(JSON.stringify({ error: { code: 'invalid_checkout', message: 'Check the highlighted checkout information.' } }), { status: 400 })));
+  seedCart(); render(<App initialEntries={['/checkout']} />); await waitForPricing(); fillCheckout();
   fireEvent.submit(getForm());
   await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Check the highlighted checkout information.'));
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([line]);
@@ -204,12 +232,12 @@ it('shows a public service validation error without clearing the cart', async ()
 
 it.each([201, 503])('ignores an abandoned checkout response (%s) after cart edits and preserves navigation', async (status) => {
   let resolve!: (response: Response) => void;
-  const fetch = vi.fn().mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));
+  const fetch = withPricing(() => new Promise<Response>((done) => { resolve = done; }));
   vi.stubGlobal('fetch', fetch);
   seedCart(); window.history.replaceState(null, '', '/checkout');
-  render(<App />); fillCheckout();
+  render(<App />); await waitForPricing(); fillCheckout();
   fireEvent.submit(getForm());
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch.mock.calls.filter(([url]) => url === '/api/orders')).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
   fireEvent.click(screen.getByRole('link', { name: 'Cart (2)' }));
   fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } });

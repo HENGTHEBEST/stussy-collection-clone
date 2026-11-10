@@ -1,4 +1,4 @@
-import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce';
+import type { CheckoutPricing, CreateOrderRequest, PublicOrder } from '../../shared/commerce';
 
 const unavailable = 'The shop service is temporarily unavailable.';
 
@@ -6,7 +6,7 @@ export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); this.name = 'ApiError'; }
 }
 
-async function requestOrder(path: string, options: RequestInit = {}): Promise<PublicOrder> {
+async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
   try { response = await fetch(path, options); }
   catch (error) {
@@ -22,17 +22,28 @@ async function requestOrder(path: string, options: RequestInit = {}): Promise<Pu
       && typeof error.message === 'string' && error.message.trim() ? error.message : unavailable;
     throw new ApiError(message, response.status);
   }
-  return body as PublicOrder;
+  return body as T;
 }
 
 export function createOrder(input: CreateOrderRequest): Promise<PublicOrder> {
-  return requestOrder('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+  return requestJson('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
 }
 
 export function getOrder(orderId: string, signal?: AbortSignal): Promise<PublicOrder> {
-  return requestOrder('/api/orders/' + encodeURIComponent(orderId), { signal });
+  return requestJson('/api/orders/' + encodeURIComponent(orderId), { signal });
 }
 
 export function simulateMockPayment(orderId: string): Promise<PublicOrder> {
-  return requestOrder('/api/orders/' + encodeURIComponent(orderId) + '/mock-payment', { method: 'POST' });
+  return requestJson('/api/orders/' + encodeURIComponent(orderId) + '/mock-payment', { method: 'POST' });
+}
+
+export async function getCheckoutPricing(signal?: AbortSignal): Promise<CheckoutPricing> {
+  const pricing = await requestJson<unknown>('/api/checkout-pricing', { signal });
+  if (typeof pricing !== 'object' || pricing === null
+    || !('unitPriceMinor' in pricing) || !('freeShipping' in pricing)
+    || !(pricing.unitPriceMinor === null || (Number.isSafeInteger(pricing.unitPriceMinor) && Number(pricing.unitPriceMinor) >= 1))
+    || typeof pricing.freeShipping !== 'boolean') {
+    throw new ApiError(unavailable, 500);
+  }
+  return { unitPriceMinor: pricing.unitPriceMinor as number | null, freeShipping: pricing.freeShipping };
 }

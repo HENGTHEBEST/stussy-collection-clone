@@ -29,6 +29,12 @@ describe('order HTTP API', () => {
       .expect(200, { ready: true, paymentMode: 'mock' });
     expectSafe(response.text);
   });
+  it('publishes only the non-secret checkout pricing policy', async () => {
+    const response = await request(createApp({ service, config: loadConfig({ TEST_UNIT_PRICE_MINOR: '1', TEST_FREE_SHIPPING: 'true' }) }))
+      .get('/api/checkout-pricing').expect(200, { unitPriceMinor: 1, freeShipping: true });
+    expect(Object.keys(response.body).sort()).toEqual(['freeShipping', 'unitPriceMinor']);
+    expectSafe(response.text);
+  });
   it('creates, reads, and persists simulated payment through public summaries', async () => {
     const app = createApp({ service, config: config() });
     const created = await request(app).post('/api/orders').send({ ...createOrderRequest(), apiToken: 'secret-token', totalMinor: 1 }).expect(201);
