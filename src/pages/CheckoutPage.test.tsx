@@ -64,6 +64,17 @@ it('shows contact and address fields with KHQR copy and no removed payment field
   expect(screen.getByRole('main').textContent).not.toMatch(/card|4242|no personal.*saved/i);
 });
 
+it('reviews cart items as compact product thumbnails before KHQR', () => {
+  seedCart(); render(<App initialEntries={['/checkout']} />);
+  const review = within(screen.getByRole('complementary', { name: 'Review your order' }));
+  expect(review.getByRole('img', { name: /8-Ball Tee/ })).toHaveAttribute('src', '/assets/lookbook-8-ball-black.jpg');
+  expect(review.getByText('Black / M')).toBeVisible();
+  expect(review.getByText('Quantity 2')).toBeVisible();
+  expect(within(review.getByRole('article')).getByText('$90.00')).toBeVisible();
+  expect(review.queryByRole('link', { name: 'Checkout' })).not.toBeInTheDocument();
+  expect(review.getByRole('button', { name: 'Continue to KHQR' })).toHaveAttribute('form', 'checkout-form');
+});
+
 it('creates one server order, preserves the cart while pending, then clears and replace-navigates with the order', async () => {
   let resolve!: (response: Response) => void;
   const fetch = vi.fn().mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));

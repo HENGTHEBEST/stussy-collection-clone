@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import type { CreateOrderRequest } from '../../shared/commerce';
-import { OrderSummary } from '../components/commerce/OrderSummary';
+import { formatCurrency, OrderSummary } from '../components/commerce/OrderSummary';
+import { SafeImage } from '../components/shared/SafeImage';
+import { products } from '../data/products';
 import { ApiError, createOrder } from '../lib/api';
 import { validateCheckout, type CheckoutErrors, type CheckoutFields } from '../lib/checkout';
 import { useCart } from '../state/CartProvider';
@@ -89,22 +91,36 @@ export function CheckoutPage() {
 
   return <div className="page-shell commerce-page"><h1>Checkout</h1>
     <p>Continue to KHQR to review your server order and payment details.</p>
-    <form ref={form} noValidate autoComplete="off" onSubmit={submit} aria-busy={submitting}>
-      <h2 className="detail-subheading">Contact and delivery</h2>
-      <div className="shop-toolbar">{contactFields.map(([key, label]) => input(key, label))}
-        <label htmlFor="checkout-delivery">Delivery option
-          <select id="checkout-delivery" value={fields.delivery} required
-            onChange={(event) => setFields((current) => ({ ...current, delivery: event.target.value as CheckoutFields['delivery'] }))}
-            aria-invalid={Boolean(errors.delivery)} aria-describedby={errors.delivery ? 'checkout-delivery-error' : undefined}>
-            <option value="standard">Standard delivery</option><option value="express">Express delivery</option>
-          </select>
-          {errors.delivery && <span id="checkout-delivery-error">{errors.delivery}</span>}
-        </label>
+    <form id="checkout-form" className="checkout-layout" ref={form} noValidate autoComplete="off" onSubmit={submit} aria-busy={submitting}>
+      <div className="checkout-fields">
+        <h2 className="detail-subheading">Contact and delivery</h2>
+        <div className="shop-toolbar">{contactFields.map(([key, label]) => input(key, label))}
+          <label htmlFor="checkout-delivery">Delivery option
+            <select id="checkout-delivery" value={fields.delivery} required
+              onChange={(event) => setFields((current) => ({ ...current, delivery: event.target.value as CheckoutFields['delivery'] }))}
+              aria-invalid={Boolean(errors.delivery)} aria-describedby={errors.delivery ? 'checkout-delivery-error' : undefined}>
+              <option value="standard">Standard delivery</option><option value="express">Express delivery</option>
+            </select>
+            {errors.delivery && <span id="checkout-delivery-error">{errors.delivery}</span>}
+          </label>
+        </div>
+        {Object.keys(errors).length > 0 && <p>{invalidMessage}</p>}
+        {networkError && <p className="field-error">{networkError}</p>}
       </div>
-      {Object.keys(errors).length > 0 && <p>{invalidMessage}</p>}
-      {networkError && <p className="field-error">{networkError}</p>}
-      <button type="submit" disabled={submitting}>Continue to KHQR</button>
+      <aside className="checkout-review" aria-labelledby="checkout-review-title">
+        <h2 id="checkout-review-title" className="detail-subheading">Review your order</h2>
+        <div className="checkout-items">{lines.flatMap((line) => {
+          const product = products.find((item) => item.id === line.productId);
+          return product ? [<article className="checkout-item" key={`${line.productId}:${line.color}:${line.size}`}>
+            <SafeImage src={product.image} alt={product.name} fallbackLabel={`${product.name} image unavailable`} />
+            <div><h3>{product.name}</h3><p>{line.color} / {line.size}</p><p>Quantity {line.quantity}</p></div>
+            <strong>{formatCurrency(line.unitPrice * line.quantity)}</strong>
+          </article>] : [];
+        })}</div>
+        <OrderSummary lines={lines} showCheckoutLink={false} />
+        <button type="submit" form="checkout-form" disabled={submitting}>Continue to KHQR</button>
+        <p className="checkout-payment-note">Next, scan the KHQR code to complete payment.</p>
+      </aside>
     </form>
-    <OrderSummary lines={lines} />
   </div>;
 }
