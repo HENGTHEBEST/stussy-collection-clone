@@ -22,6 +22,7 @@ export function SiteFooter() {
     announce(success);
   }
   return <footer id="contact" className="site-footer" tabIndex={-1}>
+    <img className="footer-watermark" src="/assets/stussy-logo.png" alt="" aria-hidden="true" width="960" height="640" />
     <div className="footer-grid">
       <div><h2>Stay connected</h2><p>Stussy Collection</p>
         <p>Independent collection showcase</p>

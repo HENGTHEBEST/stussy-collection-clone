@@ -122,6 +122,18 @@ it('exposes shell navigation and persisted provider counts', async () => {
   expect(screen.getAllByRole('status')).toHaveLength(1);
 });
 
+it('hides the header only while scrolling down and keeps the footer logo decorative', async () => {
+  Object.defineProperty(window, 'scrollY', { value: 0, writable: true, configurable: true });
+  render(<App initialEntries={['/']} />);
+  const header = document.querySelector<HTMLElement>('header.site-header')!;
+  expect(header).not.toHaveClass('is-hidden');
+  await act(async () => { window.scrollY = 120; fireEvent.scroll(window); });
+  expect(header).toHaveClass('is-hidden');
+  await act(async () => { window.scrollY = 40; fireEvent.scroll(window); });
+  expect(header).not.toHaveClass('is-hidden');
+  expect(document.querySelector('footer .footer-watermark')).toHaveAttribute('aria-hidden', 'true');
+});
+
 it('removes the unofficial demo badge while retaining an honest independent showcase label', () => {
   render(<App initialEntries={['/']} />);
   expect(screen.queryAllByText(/unofficial demo store/i)).toHaveLength(0);

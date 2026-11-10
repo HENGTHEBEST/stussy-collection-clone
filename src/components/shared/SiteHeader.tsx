@@ -8,15 +8,30 @@ export function SiteHeader() {
   const { ids } = useWishlist();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLElement>(null);
+  const lastScrollY = useRef(0);
   const close = () => { setOpen(false); trigger.current?.focus(); };
 
   useLayoutEffect(() => {
     // History navigation must restore focus before the menu becomes hidden.
     // ScrollManager can then focus the destination heading or requested section.
     if (open) close();
+    setHidden(false);
   }, [location.pathname, location.hash, location.key]);
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+    const scroll = () => {
+      const nextScrollY = window.scrollY;
+      const change = nextScrollY - lastScrollY.current;
+      if (open || nextScrollY < 16) setHidden(false);
+      else if (Math.abs(change) >= 8) setHidden(change > 0);
+      lastScrollY.current = nextScrollY;
+    };
+    window.addEventListener('scroll', scroll, { passive: true });
+    return () => window.removeEventListener('scroll', scroll);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
@@ -50,7 +65,7 @@ export function SiteHeader() {
   }
   return <>
     <a className="skip-link" href="#main-content">Skip to content</a>
-    <header className="site-header">
+    <header className={'site-header' + (hidden ? ' is-hidden' : '')} onFocusCapture={() => setHidden(false)}>
       <Link className="site-logo" to="/" aria-label="Stussy Collection home">
         <img src="/assets/stussy-logo.png" alt="" aria-hidden="true" width="96" height="64" />
       </Link>
