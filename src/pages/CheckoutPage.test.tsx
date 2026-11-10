@@ -10,6 +10,7 @@ import { MockBakongGateway } from '../../server/payments/mock-bakong-gateway';
 const line = { productId: 1, color: 'Black', size: 'M', quantity: 2, unitPrice: 45 };
 const order: PublicOrder = {
   id: '019a6215-d300-4000-8000-000000000001', status: 'awaiting_payment', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z',
+  merchantName: 'Stussy Collection',
   deliveryLabel: 'Express delivery', currency: 'USD', subtotalMinor: 9600, shippingMinor: 2400, totalMinor: 12000,
   lines: [{ productId: 1, slug: 'tee', name: 'Server Tee', image: '/tee.png', size: 'M', color: 'Black', quantity: 2, unitPriceMinor: 4800 }],
   payment: { status: 'pending', qrDataUrl: 'data:image/png;base64,AAAA', expiresAt: '2026-11-09T00:15:00.000Z', providerReference: 'mock-1' }, mockMode: true,

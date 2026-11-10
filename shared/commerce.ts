@@ -45,6 +45,7 @@ export interface PublicPaymentAttempt {
 }
 export interface PublicOrder {
   id: string; status: OrderStatus; createdAt: string; updatedAt: string;
+  merchantName: string;
   deliveryLabel: 'Standard delivery' | 'Express delivery'; currency: 'USD';
   subtotalMinor: number; shippingMinor: number; totalMinor: number;
   lines: PublicOrderLine[]; payment: PublicPaymentAttempt;

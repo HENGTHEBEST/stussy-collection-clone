@@ -33,7 +33,9 @@ async function setup() {
 }
 function launch(directory: string, env: NodeJS.ProcessEnv) {
   const childEnv = { ...process.env };
-  for (const key of ['PAYMENT_MODE', 'API_PORT', 'APP_ORIGIN', 'SQLITE_PATH', 'BAKONG_API_TOKEN']) delete childEnv[key];
+  for (const key of ['PAYMENT_MODE', 'API_PORT', 'APP_ORIGIN', 'SQLITE_PATH', 'BAKONG_API_BASE_URL',
+    'BAKONG_API_TOKEN', 'BAKONG_ACCOUNT_ID', 'BAKONG_MERCHANT_ID', 'BAKONG_ACQUIRING_BANK',
+    'MERCHANT_NAME', 'MERCHANT_CITY', 'TEST_UNIT_PRICE_MINOR', 'TEST_FREE_SHIPPING']) delete childEnv[key];
   const child = spawn(process.execPath, ['--import', pathToFileURL(resolve('node_modules/tsx/dist/loader.mjs')).href,
     resolve('server/index.ts')], { cwd: directory, env: { ...childEnv, ...env }, windowsHide: true, stdio: 'pipe' });
   children.push(child);
@@ -70,11 +72,24 @@ it('starts from environment settings when .env.local is absent', async () => {
   const runtime = launch(directory, { PAYMENT_MODE: 'mock', API_PORT: String(port), SQLITE_PATH: './data/store.sqlite' });
   expect(await ready(url, runtime.child)).toEqual({ ready: true, paymentMode: 'mock' });
 }, 10000);
-it.each(['sit', 'production'])('fails closed for unsupported %s runtime without exposing credentials', async paymentMode => {
+it.each(['sit', 'production'])('fails closed for incomplete %s credentials without exposing credentials', async paymentMode => {
   const { directory, port } = await setup();
   const runtime = launch(directory, { PAYMENT_MODE: paymentMode, API_PORT: String(port), BAKONG_API_TOKEN: 'secret-token', SQLITE_PATH: './data/store.sqlite' });
   const code = await new Promise<number | null>(resolve => runtime.child.once('exit', resolve));
   expect(code).toBe(1);
   expect(runtime.output()).not.toMatch(/secret-token|\n\s+at /);
   await expect(readFile(join(directory, 'data/store.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' });
+}, 10000);
+
+it.each(['sit', 'production'])('starts a configured %s runtime without contacting the provider', async paymentMode => {
+  const { directory, port, url } = await setup();
+  const runtime = launch(directory, {
+    PAYMENT_MODE: paymentMode, API_PORT: String(port), SQLITE_PATH: ':memory:',
+    BAKONG_API_BASE_URL: 'https://api.example.test', BAKONG_API_TOKEN: 'synthetic-token',
+    BAKONG_ACCOUNT_ID: 'shop@example', BAKONG_MERCHANT_ID: 'merchant-1',
+    BAKONG_ACQUIRING_BANK: 'TEST BANK', MERCHANT_NAME: 'Test Shop', MERCHANT_CITY: 'PHNOM PENH',
+    TEST_UNIT_PRICE_MINOR: '1', TEST_FREE_SHIPPING: 'true',
+  });
+  expect(await ready(url, runtime.child)).toEqual({ ready: true, paymentMode });
+  expect(runtime.output()).not.toMatch(/synthetic-token|shop@example|merchant-1|TEST BANK/);
 }, 10000);

@@ -8,6 +8,7 @@ import { OrderPage } from './OrderPage';
 vi.mock('../lib/api', async (importOriginal) => ({ ...await importOriginal<typeof import('../lib/api')>(), getOrder: vi.fn(), simulateMockPayment: vi.fn() }));
 const order: PublicOrder = {
   id: 'order-1', status: 'awaiting_payment', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z',
+  merchantName: 'Stussy Collection',
   deliveryLabel: 'Standard delivery', currency: 'USD', subtotalMinor: 9600, shippingMinor: 1200, totalMinor: 10800,
   lines: [{ productId: 1, slug: 'snapshot-tee', name: 'Server snapshot tee', image: '/snapshot.png', size: 'M', color: 'Black', quantity: 2, unitPriceMinor: 4800 }],
   payment: { status: 'pending', qrDataUrl: 'data:image/png;base64,AAAA', expiresAt: '2026-11-09T00:15:00.000Z', providerReference: 'mock-1' }, mockMode: true,

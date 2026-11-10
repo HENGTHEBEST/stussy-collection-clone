@@ -80,12 +80,20 @@ describe('OrderService', () => {
     const order = await service.createOrder(createOrderRequest());
     for (const result of [order, await service.getOrder(order.id)]) {
       expect(Object.keys(result!).sort()).toEqual([
-        'createdAt', 'currency', 'deliveryLabel', 'id', 'lines', 'mockMode', 'payment',
+        'createdAt', 'currency', 'deliveryLabel', 'id', 'lines', 'merchantName', 'mockMode', 'payment',
         'shippingMinor', 'status', 'subtotalMinor', 'totalMinor', 'updatedAt',
       ]);
+      expect(result!.merchantName).toBe('Stussy Collection');
       expect(Object.keys(result!.payment).sort()).toEqual(['expiresAt', 'providerReference', 'qrDataUrl', 'status']);
       expect(Object.keys(result!.lines[0]).sort()).toEqual(['color', 'image', 'name', 'productId', 'quantity', 'size', 'slug', 'unitPriceMinor']);
     }
+  });
+
+  it('exposes the configured display name without provider credentials', async () => {
+    service = new OrderService(repository, gateway, () => time, undefined, 'Test Shop');
+    const order = await service.createOrder(createOrderRequest());
+    expect(order.merchantName).toBe('Test Shop');
+    expect(JSON.stringify(order)).not.toMatch(/apiToken|merchantId|bakongAccountId|acquiringBank/);
   });
 
   it('reuses the original order for repeated or concurrent request IDs', async () => {

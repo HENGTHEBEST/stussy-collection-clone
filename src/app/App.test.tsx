@@ -57,6 +57,7 @@ it.each([
 it('loads a server order directly at its registered route without local storage', async () => {
   vi.mocked(getOrder).mockResolvedValue({
     id: 'direct-order', status: 'paid', createdAt: '2026-11-09T00:00:00.000Z', updatedAt: '2026-11-09T00:00:00.000Z',
+    merchantName: 'Stussy Collection',
     deliveryLabel: 'Standard delivery', currency: 'USD', subtotalMinor: 9600, shippingMinor: 1200, totalMinor: 10800,
     lines: [{ productId: 1, slug: 'snapshot-tee', name: 'Server snapshot tee', image: '/snapshot.png', size: 'M', color: 'Black', quantity: 2, unitPriceMinor: 4800 }],
     payment: { status: 'paid', qrDataUrl: '', expiresAt: '2026-11-09T00:15:00.000Z', providerReference: 'mock-direct' }, mockMode: true,

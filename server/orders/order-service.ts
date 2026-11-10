@@ -62,9 +62,10 @@ function validateRequest(input: CreateOrderRequest): CreateOrderRequest {
   return { requestId, customer, address, delivery: input.delivery, lines };
 }
 
-function publicOrder(order: StoredOrder): PublicOrder {
+function publicOrder(order: StoredOrder, merchantName: string): PublicOrder {
   return {
     id: order.id, status: order.status, createdAt: order.createdAt, updatedAt: order.updatedAt,
+    merchantName,
     deliveryLabel: order.deliveryLabel, currency: order.currency,
     subtotalMinor: order.subtotalMinor, shippingMinor: order.shippingMinor, totalMinor: order.totalMinor,
     lines: order.lines.map(line => ({
@@ -88,6 +89,7 @@ export class OrderService {
     private readonly gateway: PaymentGateway,
     private readonly now: () => Date = () => new Date(),
     private readonly pricing: PricingPolicy = { unitPriceMinor: null, freeShipping: false },
+    private readonly merchantName = 'Stussy Collection',
   ) {}
 
   async createOrder(input: CreateOrderRequest): Promise<PublicOrder> {
@@ -117,13 +119,13 @@ export class OrderService {
       status: 'awaiting_payment', createdAt, updatedAt: createdAt, currency: 'USD', ...pricing,
       payment: { ...payment, transactionHash: null }, mockMode: this.gateway instanceof MockBakongGateway,
     });
-    return publicOrder(stored);
+    return publicOrder(stored, this.merchantName);
   }
 
   async getOrder(id: string): Promise<PublicOrder | null> {
     const order = this.repository.findById(id);
     if (!order) return null;
-    if (order.status !== 'awaiting_payment' || order.payment.status !== 'pending') return publicOrder(order);
+    if (order.status !== 'awaiting_payment' || order.payment.status !== 'pending') return publicOrder(order, this.merchantName);
     const updatedAt = this.now().toISOString();
     if (Date.parse(updatedAt) >= Date.parse(order.payment.expiresAt)) {
       this.repository.markExpired(id, updatedAt);
@@ -146,7 +148,7 @@ export class OrderService {
         this.repository.markExpired(id, checkedAt);
       }
     }
-    return publicOrder(this.repository.findById(id)!);
+    return publicOrder(this.repository.findById(id)!, this.merchantName);
   }
 
   async simulateSuccess(id: string): Promise<PublicOrder | null> {

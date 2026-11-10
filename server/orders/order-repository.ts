@@ -8,7 +8,7 @@ export interface StoredPaymentAttempt extends PublicPaymentAttempt {
   transactionHash: string | null;
 }
 
-export interface StoredOrder extends Omit<PublicOrder, 'payment'> {
+export interface StoredOrder extends Omit<PublicOrder, 'payment' | 'merchantName'> {
   requestId: string;
   customer: CheckoutCustomer;
   address: DeliveryAddress;

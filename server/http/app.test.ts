@@ -14,7 +14,7 @@ let service: OrderService;
 const config = () => loadConfig({});
 const invalidCheckout = { error: { code: 'invalid_checkout', message: 'Check the highlighted checkout information.' } };
 function expectSafe(text: string) {
-  expect(text).not.toMatch(/"(?:apiToken|street|stack)"|secret-token|12 Test Street|Error:|\n\s+at /);
+  expect(text).not.toMatch(/"(?:apiToken|merchantId|bakongAccountId|acquiringBank|street|stack)"|secret-token|12 Test Street|Error:|\n\s+at /);
 }
 beforeEach(() => {
   repository = new SqliteOrderRepository(':memory:');
@@ -32,7 +32,10 @@ describe('order HTTP API', () => {
   it('creates, reads, and persists simulated payment through public summaries', async () => {
     const app = createApp({ service, config: config() });
     const created = await request(app).post('/api/orders').send({ ...createOrderRequest(), apiToken: 'secret-token', totalMinor: 1 }).expect(201);
-    expect(created.body).toMatchObject({ status: 'awaiting_payment', totalMinor: 10800, currency: 'USD', mockMode: true });
+    expect(created.body).toMatchObject({
+      status: 'awaiting_payment', totalMinor: 10800, currency: 'USD',
+      merchantName: 'Stussy Collection', mockMode: true,
+    });
     const read = await request(app).get('/api/orders/' + created.body.id).expect(200);
     expect(read.body).toEqual(created.body);
     const paid = await request(app).post('/api/orders/' + created.body.id + '/mock-payment').expect(200);
