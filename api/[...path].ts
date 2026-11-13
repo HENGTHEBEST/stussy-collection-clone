@@ -1,3 +1,3 @@
-import { buildApp } from '../server/bootstrap.js';
+import { buildApp } from '../back-end/server/bootstrap.js';
 
 export default await buildApp();

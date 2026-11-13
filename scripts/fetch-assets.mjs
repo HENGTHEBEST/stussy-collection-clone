@@ -23,7 +23,7 @@ export const assets = new Map([
   ['motif-8-ball.jpg', 'https://media.base44.com/images/public/user_68f09dbd211a6584f1c093c7/dbc15a74d_Design1.jpg'],
 ]);
 
-export const assetDirectory = new URL('../public/assets/', import.meta.url);
+export const assetDirectory = new URL('../front-end/public/assets/', import.meta.url);
 
 export async function fetchAssets(directory = fileURLToPath(assetDirectory), entries = assets) {
   await mkdir(directory, { recursive: true });
@@ -36,5 +36,5 @@ export async function fetchAssets(directory = fileURLToPath(assetDirectory), ent
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  console.log(`Fetched ${await fetchAssets()} assets into public/assets.`);
+  console.log(`Fetched ${await fetchAssets()} assets into front-end/public/assets.`);
 }

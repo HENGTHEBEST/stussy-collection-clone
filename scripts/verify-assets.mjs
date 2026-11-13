@@ -12,5 +12,5 @@ export async function verifyAssets(directory = fileURLToPath(assetDirectory), fi
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  console.log(`Verified ${await verifyAssets()} nonempty assets in public/assets.`);
+  console.log(`Verified ${await verifyAssets()} nonempty assets in front-end/public/assets.`);
 }

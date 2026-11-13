@@ -3,10 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const styles = await Promise.all([
-  'src/styles/tokens.css',
-  'src/styles/base.css',
-  'src/styles/showcase.css',
-  'src/styles/commerce.css',
+  'front-end/src/styles/tokens.css',
+  'front-end/src/styles/base.css',
+  'front-end/src/styles/showcase.css',
+  'front-end/src/styles/commerce.css',
 ].map((path) => readFile(resolve(process.cwd(), path), 'utf8')));
 
 describe('neutral interface theme', () => {

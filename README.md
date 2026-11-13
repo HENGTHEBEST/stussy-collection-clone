@@ -2,11 +2,18 @@
 
 An editorial React storefront with a server-backed Bakong KHQR checkout. Catalog prices, stock and delivery are illustrative.
 
+## Project layout
+
+- `front-end/` contains the React app, its HTML entrypoint, styles, tests and public assets.
+- `back-end/server/` contains the API, checkout services, payment providers and server tests; `back-end/supabase/` contains the database migration.
+- `shared/` contains catalog data and checkout contracts used by both sides.
+- `api/[...path].ts` is the small root entrypoint required by Vercel. Root configuration and `scripts/` wire up development, tests and deployment.
+
 ## Local mock checkout
 
 Use Node.js 24 and npm. Every running API uses Supabase, including local mock mode. SQLite remains an isolated test adapter.
 
-1. If `.env.local` does not exist, copy `.env.example` to `.env.local` (PowerShell: `Copy-Item .env.example .env.local`). Set `STORAGE_MODE=supabase`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for a development Supabase project. For a new database, apply `supabase/migrations/202611110001_orders.sql` once before checkout; do not reapply an already applied migration.
+1. If `.env.local` does not exist, copy `.env.example` to `.env.local` (PowerShell: `Copy-Item .env.example .env.local`). Set `STORAGE_MODE=supabase`, `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for a development Supabase project. For a new database, apply `back-end/supabase/migrations/202611110001_orders.sql` once before checkout; do not reapply an already applied migration.
 2. Run `npm install`.
 3. Run `npm run dev`.
 4. Open the printed Vite URL, normally `http://localhost:5173`, and complete product variant → cart → checkout → simulated KHQR.
@@ -40,7 +47,7 @@ Keep `data/`, `.env` and `.env.local` out of Git. Existing local SQLite orders a
 
 ## Vercel configuration
 
-`vercel.json` builds the Vite frontend into `dist`, routes `/api/*` to `api/[...path].ts`, and sends frontend routes to `index.html`. The API entry exports the Express app without starting a listener. `server/index.ts` alone loads `.env.local`, listens on localhost and closes the local server on shutdown. This follows Vercel's [Node function](https://vercel.com/docs/functions/runtimes/node-js) and [rewrite](https://vercel.com/docs/routing/rewrites) configuration.
+`vercel.json` builds the Vite frontend from `front-end/` into `dist`, routes `/api/*` to `api/[...path].ts`, and sends frontend routes to the generated `dist/index.html`. The API entry exports the Express app without starting a listener. `back-end/server/index.ts` alone loads `.env.local`, listens on localhost and closes the local server on shutdown. This follows Vercel's [Node function](https://vercel.com/docs/functions/runtimes/node-js) and [rewrite](https://vercel.com/docs/routing/rewrites) configuration.
 
 Choose Node.js **24.x** in Vercel's project settings. Configure Preview and Production environment variables separately; use a development Supabase project for Preview. Set `APP_ORIGIN` to each deployment's exact HTTPS browser origin, with no trailing slash or path. A stable preview domain makes this value predictable. Vercel does not receive the ignored local environment file.
 
@@ -59,7 +66,7 @@ Keep Supabase and payment secrets out of `VITE_*`, source files and browser stor
 
 ## Staging-to-production checklist
 
-The SQL migration was reported manually applied for this rollout. Its remote state has not been checked by local tests. Do not rerun it on that database. For a new, empty development or production project, apply `supabase/migrations/202611110001_orders.sql` once in the Supabase SQL editor and record the project and application date. Before checkout, use the dashboard to confirm `orders`, `order_lines`, `payment_attempts`, enabled RLS with anonymous/authenticated table access revoked, and the migration's service-only RPC functions. Runtime storage is always Supabase; SQLite is test-only and existing local orders are not imported.
+The SQL migration was reported manually applied for this rollout. Its remote state has not been checked by local tests. Do not rerun it on that database. For a new, empty development or production project, apply `back-end/supabase/migrations/202611110001_orders.sql` once in the Supabase SQL editor and record the project and application date. Before checkout, use the dashboard to confirm `orders`, `order_lines`, `payment_attempts`, enabled RLS with anonymous/authenticated table access revoked, and the migration's service-only RPC functions. Runtime storage is always Supabase; SQLite is test-only and existing local orders are not imported.
 
 Run local checks first, stopping on any failure. These PowerShell commands do not deploy or create remote orders:
 

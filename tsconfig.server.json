@@ -17,7 +17,7 @@
   },
   "include": [
     "api",
-    "server",
+    "back-end/server",
     "shared"
   ]
 }

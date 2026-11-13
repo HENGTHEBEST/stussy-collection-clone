@@ -11,8 +11,8 @@
     "assets:fetch": "node scripts/fetch-assets.mjs",
     "assets:verify": "node scripts/verify-assets.mjs",
     "dev:web": "vite",
-    "dev:api": "tsx watch server/index.ts",
-    "start:api": "tsx server/index.ts",
+    "dev:api": "tsx watch back-end/server/index.ts",
+    "start:api": "tsx back-end/server/index.ts",
     "typecheck": "tsc -b"
   },
   "dependencies": {

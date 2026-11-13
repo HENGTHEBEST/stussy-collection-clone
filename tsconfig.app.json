@@ -15,5 +15,5 @@
     "strict": true,
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "shared"]
+  "include": ["front-end/src", "shared"]
 }
