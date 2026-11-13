@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce';
-import { ApiError, createOrder, getCheckoutPricing, getOrder, simulateMockPayment } from './api';
+import { ApiError, checkAddress, createOrder, getCheckoutPricing, getOrder, simulateMockPayment } from './api';
 
 const input: CreateOrderRequest = {
   requestId: '019a6215-d300-4000-8000-000000000001',
@@ -18,6 +18,15 @@ const order: PublicOrder = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('shop API client', () => {
+  it('checks the delivery location before advancing checkout', async () => {
+    const address = { city: 'Phnom Penh', region: 'Phnom Penh', country: 'Cambodia' };
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ address, errors: {} })));
+    vi.stubGlobal('fetch', fetch);
+    expect(await checkAddress(address)).toEqual({ address, errors: {} });
+    expect(fetch).toHaveBeenCalledWith('/api/validate-address', expect.objectContaining({
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(address),
+    }));
+  });
   it('loads and validates the public checkout pricing contract', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ unitPriceMinor: 1, freeShipping: true })));
     vi.stubGlobal('fetch', fetch);

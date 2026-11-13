@@ -1,6 +1,9 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
-import { loadBakongCredentials, loadConfig } from './config.js';
+import { describe, expect, it, vi } from 'vitest';
+import { loadBakongCredentials, loadConfig as loadServerConfig, loadPayWayCredentials } from './config.js';
+
+const supabaseEnv = { SUPABASE_URL: 'https://test-project.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key' };
+const loadConfig = (env: NodeJS.ProcessEnv = {}) => loadServerConfig({ ...supabaseEnv, ...env });
 
 const realEnv = {
   BAKONG_API_BASE_URL: 'https://api-bakong.nbc.gov.kh',
@@ -19,20 +22,61 @@ const credentialLimits = [
 ] as const;
 
 describe('server configuration', () => {
-  it('defaults to the credential-free local mock server', () => {
-    expect(loadConfig({})).toEqual({
-      port: 8787, appOrigin: 'http://localhost:5173', paymentMode: 'mock',
+  it('does not borrow Supabase credentials from a different environment', () => {
+    vi.stubEnv('SUPABASE_URL', 'https://ambient.supabase.co');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'ambient-secret');
+    try {
+      expect(() => loadServerConfig({})).toThrow('SUPABASE_URL');
+      expect(() => loadServerConfig({ SUPABASE_URL: supabaseEnv.SUPABASE_URL })).toThrow('SUPABASE_SERVICE_ROLE_KEY');
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it('rejects SQLite runtime selection and never retains a local database path', () => {
+    expect(() => loadConfig({ STORAGE_MODE: 'sqlite' })).toThrow('STORAGE_MODE');
+    expect(loadConfig({ STORAGE_MODE: 'supabase', SQLITE_PATH: '/unused.sqlite' })).not.toHaveProperty('sqlitePath');
+  });
+
+  it.each(['http://project.supabase.co', 'https://project.supabase.co/path',
+    'https://user:secret@project.supabase.co', 'https://project.supabase.co?key=secret'])('rejects unsafe Supabase URL %j', SUPABASE_URL => {
+    expect(() => loadConfig({ SUPABASE_URL })).toThrow('SUPABASE_URL');
+  });
+
+  it('does not retain the service-role key in public configuration', () => {
+    expect(JSON.stringify(loadConfig({ SUPABASE_SERVICE_ROLE_KEY: 'private-synthetic-key' }))).not.toContain('private-synthetic-key');
+    expect(() => loadConfig({ SUPABASE_SERVICE_ROLE_KEY: 'x'.repeat(4097) })).toThrow('SUPABASE_SERVICE_ROLE_KEY');
+  });
+  it('requires both Supabase settings in every runtime', () => {
+    expect(() => loadConfig({ SUPABASE_URL: '' })).toThrow('SUPABASE_URL');
+    expect(() => loadConfig({ SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SERVICE_ROLE_KEY: '' }))
+      .toThrow('SUPABASE_SERVICE_ROLE_KEY');
+    expect(loadConfig({ SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'secret' }))
+      .toMatchObject({ supabaseUrl: 'https://project.supabase.co' });
+  });
+
+  it('enables cards only with a complete PayWay merchant ID and server key', () => {
+    expect(loadPayWayCredentials({})).toBeNull();
+    expect(loadConfig({}).cardAvailable).toBeUndefined();
+    expect(() => loadConfig({ PAYWAY_MERCHANT_ID: 'merchant' })).toThrow('PAYWAY_API_KEY');
+    expect(() => loadConfig({ PAYWAY_API_KEY: 'secret' })).toThrow('PAYWAY_MERCHANT_ID');
+    const env = { PAYWAY_MERCHANT_ID: 'merchant', PAYWAY_API_KEY: 'synthetic-secret', PAYWAY_ENVIRONMENT: 'sandbox' };
+    expect(loadConfig(env).cardAvailable).toBe(true);
+    expect(JSON.stringify(loadConfig(env))).not.toContain('synthetic-secret');
+    expect(() => loadConfig({ ...env, PAYWAY_ENVIRONMENT: 'other' })).toThrow('PAYWAY_ENVIRONMENT');
+  });
+  it('uses Supabase-backed mock settings with complete server configuration', () => {
+    expect(loadConfig({ SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'secret' })).toEqual({
+      port: 8787, appOrigin: 'http://localhost:5173', supabaseUrl: 'https://project.supabase.co', paymentMode: 'mock',
       merchantName: 'Stussy Collection Showcase', merchantCity: 'Phnom Penh',
-      bakongAccountId: 'demo@mock', currency: 'USD', sqlitePath: './data/store.sqlite',
+      bakongAccountId: 'demo@mock', currency: 'USD',
       pricing: { unitPriceMinor: null, freeShipping: false },
     });
   });
   it('loads valid explicit settings without retaining the token', () => {
     const config = loadConfig({ ...realEnv, API_PORT: '9000', APP_ORIGIN: 'https://shop.example.test', PAYMENT_MODE: 'sit',
       MERCHANT_NAME: ' Test Merchant ', MERCHANT_CITY: ' Kampot ', BAKONG_ACCOUNT_ID: ' test@merchant ',
-      ORDER_CURRENCY: 'USD', SQLITE_PATH: ':memory:', BAKONG_API_TOKEN: 'secret-token' });
+      ORDER_CURRENCY: 'USD', BAKONG_API_TOKEN: 'secret-token' });
     expect(config).toMatchObject({ port: 9000, appOrigin: 'https://shop.example.test', paymentMode: 'sit',
-      merchantName: 'Test Merchant', merchantCity: 'Kampot', bakongAccountId: 'test@merchant', sqlitePath: ':memory:' });
+      merchantName: 'Test Merchant', merchantCity: 'Kampot', bakongAccountId: 'test@merchant' });
     expect(JSON.stringify(config)).not.toContain('secret-token');
   });
   it.each(['', '0', '-1', '65536', '1.5', 'abc', '8787oops', '1e3'])('rejects invalid API port %j', value => {
@@ -51,7 +95,7 @@ describe('server configuration', () => {
       .toMatchObject({ paymentMode: 'mock', bakongAccountId: 'demo@mock',
         pricing: { unitPriceMinor: 1, freeShipping: true } });
   });
-  it.each(['MERCHANT_NAME', 'MERCHANT_CITY', 'SQLITE_PATH'])('rejects empty %s', key => {
+  it.each(['MERCHANT_NAME', 'MERCHANT_CITY'])('rejects empty %s', key => {
     expect(() => loadConfig({ [key]: ' ' })).toThrow();
   });
   it.each(['', 'KHR', 'usd'])('rejects unsupported currency %j', value => {

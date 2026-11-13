@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { CreateOrderRequest, PublicOrder } from '../../shared/commerce.js';
 import { priceOrder } from '../catalog/order-pricing.js';
+import { verifyAddressLocation } from '../locations/address.js';
 import type { PricingPolicy } from '../config.js';
 import { MockBakongGateway } from '../payments/mock-bakong-gateway.js';
 import type { PaymentGateway } from '../payments/payment-gateway.js';
+import { PayWayGateway } from '../payments/payway-gateway.js';
 import type { OrderRepository, StoredOrder } from './order-repository.js';
 
 export class OrderValidationError extends Error {}
@@ -28,6 +30,9 @@ function validateRequest(input: CreateOrderRequest): CreateOrderRequest {
   if (!isRecord(input.customer) || !isRecord(input.address)) {
     throw new OrderValidationError('Customer and delivery address are required.');
   }
+  if (input.paymentMethod !== undefined && input.paymentMethod !== 'khqr' && input.paymentMethod !== 'card') {
+    throw new OrderValidationError('Invalid payment method.');
+  }
   const customer = {
     name: requiredText(input.customer.name, 'Name'),
     email: requiredText(input.customer.email, 'Email'),
@@ -42,8 +47,8 @@ function validateRequest(input: CreateOrderRequest): CreateOrderRequest {
   const address = {
     street: requiredText(input.address.street, 'Street'),
     city: requiredText(input.address.city, 'City'),
-    region: requiredText(input.address.region, 'Region'),
-    postalCode: requiredText(input.address.postalCode, 'Postal code'),
+    region: typeof input.address.region === 'string' ? input.address.region.trim() : requiredText(input.address.region, 'Region'),
+    postalCode: typeof input.address.postalCode === 'string' ? input.address.postalCode.trim() : requiredText(input.address.postalCode, 'Postal code'),
     country: requiredText(input.address.country, 'Country'),
   };
   if (input.delivery !== 'standard' && input.delivery !== 'express') {
@@ -59,10 +64,11 @@ function validateRequest(input: CreateOrderRequest): CreateOrderRequest {
     }
     return { productId: line.productId, size: line.size, color: line.color, quantity: line.quantity };
   });
-  return { requestId, customer, address, delivery: input.delivery, lines };
+  return { requestId, customer, address, delivery: input.delivery, lines, ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}) };
 }
 
-function publicOrder(order: StoredOrder, merchantName: string): PublicOrder {
+function publicOrder(order: StoredOrder, merchantName: string, cardGateway?: PayWayGateway, now = new Date()): PublicOrder {
+  const card = order.payment.providerReference.startsWith('payway-');
   return {
     id: order.id, status: order.status, createdAt: order.createdAt, updatedAt: order.updatedAt,
     merchantName,
@@ -75,6 +81,10 @@ function publicOrder(order: StoredOrder, merchantName: string): PublicOrder {
     payment: {
       status: order.payment.status, qrDataUrl: order.payment.qrDataUrl,
       expiresAt: order.payment.expiresAt, providerReference: order.payment.providerReference,
+      ...(card ? { method: 'card' as const, ...(cardGateway?.sandbox ? { sandbox: true } : {}), ...(order.status === 'awaiting_payment'
+        && now.getTime() < Date.parse(order.payment.expiresAt) - 5 * 60 * 1000 && cardGateway
+        ? { checkout: cardGateway.checkout({ id: order.id, providerReference: order.payment.providerReference,
+          totalMinor: order.totalMinor, currency: order.currency, customer: order.customer }) } : {}) } : {}),
     },
     mockMode: order.mockMode,
   };
@@ -90,11 +100,12 @@ export class OrderService {
     private readonly now: () => Date = () => new Date(),
     private readonly pricing: PricingPolicy = { unitPriceMinor: null, freeShipping: false },
     private readonly merchantName = 'Stussy Collection',
+    private readonly cardGateway?: PayWayGateway,
   ) {}
 
   async createOrder(input: CreateOrderRequest): Promise<PublicOrder> {
     const request = validateRequest(input);
-    const existing = this.repository.findByRequestId(request.requestId);
+    const existing = await this.repository.findByRequestId(request.requestId);
     if (existing) return (await this.getOrder(existing.id))!;
     const pending = this.creating.get(request.requestId);
     if (pending) return pending;
@@ -108,51 +119,70 @@ export class OrderService {
   }
 
   private async persistOrder(request: CreateOrderRequest): Promise<PublicOrder> {
+    const location = await verifyAddressLocation(request.address);
+    if (!location.address) throw new OrderValidationError(Object.values(location.errors)[0] ?? 'Invalid delivery location.');
     const pricing = priceOrder(request.lines, request.delivery, this.pricing);
     const id = randomUUID();
     const createdAt = this.now().toISOString();
     const expiresAt = new Date(Date.parse(createdAt) + 10 * 60 * 1000).toISOString();
-    const payment = await this.gateway.createPayment({ orderId: id, totalMinor: pricing.totalMinor, currency: 'USD', expiresAt });
-    const stored = this.repository.createOrder({
-      id, requestId: request.requestId, customer: request.customer, address: request.address,
+    if (request.paymentMethod === 'card' && !this.cardGateway) throw new OrderValidationError('Card payments are not configured.');
+    const selectedGateway = request.paymentMethod === 'card' ? this.cardGateway! : this.gateway;
+    const payment = await selectedGateway.createPayment({ orderId: id, totalMinor: pricing.totalMinor, currency: 'USD', expiresAt });
+    const stored = await this.repository.createOrder({
+      id, requestId: request.requestId, customer: request.customer, address: { ...request.address, ...location.address },
       delivery: request.delivery, deliveryLabel: request.delivery === 'express' ? 'Express delivery' : 'Standard delivery',
       status: 'awaiting_payment', createdAt, updatedAt: createdAt, currency: 'USD', ...pricing,
-      payment: { ...payment, transactionHash: null }, mockMode: this.gateway instanceof MockBakongGateway,
+      payment: { ...payment, transactionHash: null }, mockMode: selectedGateway instanceof MockBakongGateway,
     });
-    return publicOrder(stored, this.merchantName);
+    return publicOrder(stored, this.merchantName, this.cardGateway, this.now());
   }
 
   async getOrder(id: string): Promise<PublicOrder | null> {
-    const order = this.repository.findById(id);
+    const order = await this.repository.findById(id);
     if (!order) return null;
-    if (order.status !== 'awaiting_payment' || order.payment.status !== 'pending') return publicOrder(order, this.merchantName);
+    if (order.status !== 'awaiting_payment' || order.payment.status !== 'pending') return publicOrder(order, this.merchantName, this.cardGateway, this.now());
+    const card = order.payment.providerReference.startsWith('payway-');
     const updatedAt = this.now().toISOString();
-    if (Date.parse(updatedAt) >= Date.parse(order.payment.expiresAt)) {
-      this.repository.markExpired(id, updatedAt);
+    if (order.mockMode && !card && Date.parse(updatedAt) >= Date.parse(order.payment.expiresAt)) {
+      await this.repository.markExpired(id, updatedAt);
     } else {
-      const result = await this.gateway.checkPayment({
+      const selectedGateway = card ? this.cardGateway : this.gateway;
+      if (!selectedGateway) throw new Error('Card payment gateway is unavailable.');
+      const result = await selectedGateway.checkPayment({
         providerReference: order.payment.providerReference,
         expiresAt: order.payment.expiresAt,
         totalMinor: order.totalMinor,
         currency: order.currency,
       });
       const checkedAt = this.now().toISOString();
-      if (Date.parse(checkedAt) >= Date.parse(order.payment.expiresAt)) {
-        this.repository.markExpired(id, checkedAt);
+      if (order.mockMode && !card && Date.parse(checkedAt) >= Date.parse(order.payment.expiresAt)) {
+        await this.repository.markExpired(id, checkedAt);
       } else if (result.status === 'paid') {
         if (!result.transactionHash?.trim()) throw new Error('Paid gateway result requires a transaction hash.');
-        this.repository.markPaid(id, result.transactionHash, checkedAt);
+        await this.repository.markPaid(id, result.transactionHash, checkedAt);
       } else if (result.status === 'failed') {
-        this.repository.markFailed(id, checkedAt);
+        await this.repository.markFailed(id, checkedAt);
       } else if (result.status === 'expired') {
-        this.repository.markExpired(id, checkedAt);
+        await this.repository.markExpired(id, checkedAt);
+      } else if (card && Date.parse(checkedAt) >= Date.parse(order.payment.expiresAt) + 5 * 60 * 1000) {
+        // shortcut: poll through a five-minute provider settlement grace before expiring card orders.
+        await this.repository.markExpired(id, checkedAt);
       }
     }
-    return publicOrder(this.repository.findById(id)!, this.merchantName);
+    const updated = await this.repository.findById(id);
+    if (!updated) throw new Error('Order disappeared after payment update.');
+    return publicOrder(updated, this.merchantName, this.cardGateway, this.now());
+  }
+
+  async reconcilePayWay(providerReference: string): Promise<PublicOrder | null> {
+    if (!/^payway-[a-f0-9]{20}$/.test(providerReference)) return null;
+    const order = await this.repository.findByProviderReference(providerReference);
+    if (!order) return null;
+    return this.getOrder(order.id);
   }
 
   async simulateSuccess(id: string): Promise<PublicOrder | null> {
-    const order = this.repository.findById(id);
+    const order = await this.repository.findById(id);
     if (!order) return null;
     if (!(this.gateway instanceof MockBakongGateway) || !order.mockMode) {
       throw new Error('Payment simulation is available only in mock mode.');

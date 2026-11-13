@@ -21,6 +21,28 @@ function setup(lines: CartLine[] = [line], wishlist = false) {
 }
 function Location() { return <span aria-label="Current path">{useLocation().pathname}</span>; }
 
+it('preserves selection when quantities change and only removes selected items after confirmation', async () => {
+  setup([line, { ...line, size: 'L', quantity: 2 }]);
+  const boxes = screen.getAllByRole('checkbox');
+  fireEvent.click(boxes[2]);
+  expect(boxes[0]).toBePartiallyChecked();
+  fireEvent.change(screen.getAllByLabelText('Quantity')[0], { target: { value: '3' } });
+  expect(screen.getAllByRole('checkbox')[2]).not.toBeChecked();
+  expect(within(screen.getByRole('region', { name: 'Order summary' })).getByText('$156.00')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Remove Selected' }));
+  await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Remove selected' }));
+  expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([{ ...line, size: 'L', quantity: 2 }]);
+  expect(screen.getByRole('button', { name: 'Proceed to checkout' })).toBeDisabled();
+});
+
+it('has no total or checkout action in the empty state', () => {
+  setup([]);
+  expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeVisible();
+  expect(screen.queryByRole('region', { name: 'Order summary' })).not.toBeInTheDocument();
+  expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Continue shopping' })).toHaveAttribute('href', '/shop');
+});
+
 it.each([
   [[], { subtotal: 0, shipping: 0, total: 0 }],
   [[{ ...line, unitPrice: 149.99 }], { subtotal: 149.99, shipping: 12, total: 161.99 }],
@@ -32,23 +54,23 @@ it.each([
 
 it('renders captured prices, local media, variant details and editable totals with accurate announcements', async () => {
   setup([{ ...line, unitPrice: 40 }]);
-  expect(screen.getByRole('link', { name: products[0].name })).toHaveAttribute('href', `/product/${products[0].slug}`);
+  expect(screen.getAllByRole('link', { name: products[0].name })[0]).toHaveAttribute('href', `/product/${products[0].slug}`);
   expect(screen.getByAltText(products[0].name)).toHaveAttribute('src', products[0].image);
   expect(screen.getByText('Black / M')).toBeVisible();
   expect(screen.getByText('Unit price: $40.00')).toBeVisible();
   fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } });
   expect(screen.getByLabelText('Quantity')).toHaveValue(3);
-  expect(screen.getByText('Line total: $120.00')).toBeVisible();
+  expect(screen.getByLabelText('Line total: $120.00')).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent(`Updated ${products[0].name} (Black / M) to 3.`);
   expect(within(screen.getByRole('region', { name: 'Order summary' })).getByText('$132.00')).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Checkout' })).toHaveAttribute('href', '/checkout');
+  expect(screen.getByRole('button', { name: 'Proceed to checkout' })).toBeEnabled();
   await userEvent.click(screen.getByRole('button', { name: `Remove ${products[0].name} (Black / M) from cart` }));
   expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent(`Removed ${products[0].name} (Black / M) from cart.`);
-  expect(screen.queryByRole('link', { name: 'Checkout' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Checkout' })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: 'Clear cart' })).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Explore shop' })).toHaveAttribute('href', '/shop');
+  expect(screen.queryByRole('link', { name: 'Proceed to checkout' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Checkout' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Remove Selected' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Continue shopping' })).toHaveAttribute('href', '/shop');
 });
 
 it('formats fractional captured prices and disables empty summary checkout semantically', () => {
@@ -56,6 +78,7 @@ it('formats fractional captured prices and disables empty summary checkout seman
   expect(screen.getByText('$0.30')).toBeVisible();
   expect(screen.getByText('$12.30')).toBeVisible();
   expect(screen.getByText(/estimates only/i)).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Proceed to checkout' })).toHaveAttribute('href', '/checkout');
   view.rerender(<MemoryRouter><OrderSummary lines={[]} /></MemoryRouter>);
   expect(screen.getByText('Free')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Checkout' })).toBeDisabled();
@@ -66,12 +89,12 @@ it('confirms clear with focus trapping, cancel, Escape, scroll restoration and f
   document.body.style.overflow = 'auto';
   setup([line, { ...line, size: 'L', quantity: 2 }]);
   const user = userEvent.setup();
-  const trigger = screen.getByRole('button', { name: 'Clear cart' });
+  const trigger = screen.getByRole('button', { name: 'Remove Selected' });
   await user.click(trigger);
-  let dialog = screen.getByRole('dialog', { name: 'Clear your cart?' });
+  let dialog = screen.getByRole('dialog', { name: 'Remove selected items?' });
   expect(dialog).toHaveAttribute('aria-modal', 'true');
   const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
-  const confirm = within(dialog).getByRole('button', { name: 'Clear cart' });
+  const confirm = within(dialog).getByRole('button', { name: 'Remove selected' });
   expect(cancel).toHaveFocus(); expect(document.body.style.overflow).toBe('hidden');
   await user.tab({ shift: true }); expect(confirm).toHaveFocus();
   await user.tab(); expect(cancel).toHaveFocus();
@@ -82,23 +105,22 @@ it('confirms clear with focus trapping, cancel, Escape, scroll restoration and f
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(trigger).toHaveFocus(); expect(document.body.style.overflow).toBe('auto');
   await user.click(trigger); dialog = screen.getByRole('dialog');
-  await user.click(within(dialog).getByRole('button', { name: 'Clear cart' }));
+  await user.click(within(dialog).getByRole('button', { name: 'Remove selected' }));
   expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeVisible();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  expect(trigger).toHaveFocus(); expect(document.body.style.overflow).toBe('auto');
-  expect(screen.getByRole('status')).toHaveTextContent('Cleared cart: removed 3 items.');
+  expect(screen.getByRole('link', { name: 'Continue shopping' })).toHaveFocus(); expect(document.body.style.overflow).toBe('auto');
+  expect(screen.getByRole('status')).toHaveTextContent('Removed 3 selected items.');
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([]);
-  expect(trigger).toHaveAccessibleName('Explore shop');
-  expect(trigger).not.toHaveAttribute('aria-haspopup');
-  expect(screen.queryByRole('button', { name: 'Clear cart' })).not.toBeInTheDocument();
-  await user.click(trigger);
+  expect(trigger).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Remove selected' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('link', { name: 'Continue shopping' }));
   expect(screen.getByLabelText('Current path')).toHaveTextContent('/shop');
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 it('restores scroll on dialog unmount', async () => {
   document.body.style.overflow = 'scroll'; const view = setup();
-  await userEvent.click(screen.getByRole('button', { name: 'Clear cart' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Remove Selected' }));
   view.unmount(); expect(document.body.style.overflow).toBe('scroll');
 });
 

@@ -1,6 +1,10 @@
 export type ProductSize = 'XS' | 'S' | 'M' | 'L' | 'XL';
 export type ProductColor = 'Black' | 'White' | 'Natural';
 export type DeliveryMethod = 'standard' | 'express';
+export function shippingPriceMinor(subtotalMinor: number, delivery: DeliveryMethod, freeShipping = false) {
+  if (freeShipping || subtotalMinor === 0) return 0;
+  return (subtotalMinor >= 15000 ? 0 : 1200) + (delivery === 'express' ? 800 : 0);
+}
 export type OrderStatus = 'awaiting_payment' | 'paid' | 'failed' | 'expired' | 'cancelled';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired';
 
@@ -31,6 +35,7 @@ export interface CheckoutLineInput {
 }
 export interface CreateOrderRequest {
   requestId: string;
+  paymentMethod?: 'khqr' | 'card';
   customer: CheckoutCustomer;
   address: DeliveryAddress;
   delivery: DeliveryMethod;
@@ -42,6 +47,9 @@ export interface PublicOrderLine {
 }
 export interface PublicPaymentAttempt {
   status: PaymentStatus; qrDataUrl: string; expiresAt: string; providerReference: string;
+  method?: 'card';
+  sandbox?: boolean;
+  checkout?: { action: string; fields: Record<string, string> };
 }
 export interface PublicOrder {
   id: string; status: OrderStatus; createdAt: string; updatedAt: string;
@@ -55,4 +63,5 @@ export interface PublicOrder {
 export interface CheckoutPricing {
   unitPriceMinor: number | null;
   freeShipping: boolean;
+  cardAvailable?: boolean;
 }

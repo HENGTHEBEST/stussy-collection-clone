@@ -4,8 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stussy — Summer Classics</title>
+    <style>
+      .brand-loading-screen { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; background: #000; }
+      .brand-loading-screen img { display: block; width: min(508px, 90vw); height: auto; }
+    </style>
   </head>
   <body>
+    <div id="startup-loader" class="brand-loading-screen" role="status" aria-label="Loading Stüssy Collection">
+      <img src="/assets/stussy-loading.gif" alt="" />
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

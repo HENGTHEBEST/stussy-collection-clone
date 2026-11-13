@@ -8,6 +8,6 @@
   --font-body: Inter, Arial, Helvetica, sans-serif;
   --font-mono: 'Space Mono', 'Courier New', monospace;
   --radius: 0;
-  --header-height: 96px;
+  --header-height: 80px;
   --page-gutter: clamp(1.25rem, 4vw, 4rem);
 }

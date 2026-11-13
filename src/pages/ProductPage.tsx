@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { findProductBySlug, relatedProducts } from '../lib/catalog';
 import type { Product, ProductSize } from '../types/commerce';
@@ -18,6 +18,12 @@ export function ProductPage() {
 function ProductDetails({ product }: { product: Product }) {
   const [size, setSize] = useState<ProductSize | ''>(''); const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(''); const [message, setMessage] = useState('');
+  const [cartNotice, setCartNotice] = useState('');
+  useEffect(() => {
+    if (!cartNotice) return;
+    const timeout = window.setTimeout(() => setCartNotice(''), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [cartNotice]);
   const sizeRef = useRef<HTMLDivElement>(null);
   const { add, lines } = useCart(); const { has, toggle } = useWishlist(); const { announce } = useFeedback();
   const saved = has(product.id);
@@ -37,11 +43,13 @@ function ProductDetails({ product }: { product: Product }) {
           if (addedQuantity > 0) add({ productId: product.id, size, color: product.color, quantity: addedQuantity, unitPrice: product.demoPrice });
           const confirmation = addedQuantity > 0 ? `Added ${addedQuantity} ${product.name} to the demo cart.` : 'Quantity limit reached: 10 per variant.';
           setMessage(confirmation); announce(confirmation);
+          if (addedQuantity > 0) setCartNotice(confirmation);
         }}>{product.available ? 'Add to cart' : 'Unavailable'}</button>
           <button aria-pressed={saved} aria-label={saved ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`} onClick={() => {
             toggle(product.id); const confirmation = `${saved ? 'Removed from' : 'Added to'} wishlist: ${product.name}`; setMessage(confirmation); announce(confirmation);
           }}>{saved ? 'Saved · Remove' : 'Save to wishlist'}</button></div>
         {message && <p className="product-feedback">{message}</p>}
+        {cartNotice && <div className="cart-toast"><p>{cartNotice}</p><Link to="/cart">View cart</Link><button type="button" aria-label="Dismiss cart notification" onClick={() => setCartNotice('')}>×</button></div>}
         <h2 className="detail-subheading">Demo features</h2><ul>{product.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
         <p>Demo shipping and returns: this simulated store does not ship products or process returns.</p>
       </div></section>

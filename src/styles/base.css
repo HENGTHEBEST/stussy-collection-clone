@@ -21,12 +21,12 @@ h3, .eyebrow { font-family: var(--font-mono); font-size: .8rem; letter-spacing: 
 main { padding-top: var(--header-height); min-height: 65vh; }
 [id] { scroll-margin-top: calc(var(--header-height) + 1rem); }
 .page-shell { padding: clamp(4rem, 10vw, 9rem) var(--page-gutter); }
-.site-header { position: fixed; inset: 0 0 auto; min-height: var(--header-height); z-index: 100; background: var(--black); border-bottom: 1px solid #333; display: flex; align-items: center; gap: 1.25rem; padding: .75rem var(--page-gutter); transition: transform 220ms cubic-bezier(.16, 1, .3, 1); }
+.site-header { position: fixed; inset: 0 0 auto; min-height: var(--header-height); z-index: 100; background: var(--black); border-bottom: 1px solid #333; display: flex; align-items: center; gap: 1.25rem; padding: .5rem var(--page-gutter); transition: transform 220ms cubic-bezier(.16, 1, .3, 1); }
 .site-header.is-hidden { transform: translateY(-100%); }
 .site-logo { flex-shrink: 0; }
-.site-logo img { object-fit: contain; width: 96px; height: 64px; filter: brightness(0) invert(1); }
+.site-logo img { object-fit: contain; width: 80px; height: 54px; filter: brightness(0) invert(1); }
 .desktop-navigation { display: flex; align-items: center; justify-content: flex-end; gap: clamp(.75rem, 1.5vw, 1.5rem); margin-left: auto; }
-.desktop-navigation a, .mobile-navigation a { text-decoration: none; font: 500 .9rem/1.2 var(--font-body); letter-spacing: .01em; }
+.desktop-navigation a, .mobile-navigation a { text-decoration: none; font: 500 .8rem/1.2 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
 .desktop-navigation a:hover, .mobile-navigation a:hover { color: var(--accent); }
 .menu-trigger { display: none; margin-left: auto; }
 .mobile-navigation { position: absolute; top: 100%; left: 0; right: 0; background: var(--black); padding: 1rem var(--page-gutter) 2rem; max-height: calc(100dvh - var(--header-height)); overflow-y: auto; }
@@ -57,7 +57,7 @@ main { padding-top: var(--header-height); min-height: 65vh; }
 @media (max-width: 767px) {
   .footer-grid { grid-template-columns: 1fr; gap: 2.5rem; }
   .site-header { gap: .6rem; }
-  .site-logo img { width: 72px; }
+  .site-logo img { width: 68px; }
 }
 @media (max-width: 359px) {
   .menu-trigger { padding-inline: .6rem; }
@@ -67,4 +67,30 @@ main { padding-top: var(--header-height); min-height: 65vh; }
   .site-header { transition: none; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+.header-actions { display: flex; gap: 24px; align-items: center; margin-left: 32px; }
+.header-actions a { position: relative; display: grid; place-items: center; width: 44px; height: 44px; text-decoration: none; }
+.header-actions svg { width: 28px; height: 28px; stroke-width: 1.65; }
+.header-count { position: absolute; top: 0; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 50%; background: #fff; color: #111; font: 500 10px/17px var(--font-body); text-align: center; }
+.checkout-header { background: #fff; color: #111; border-color: #ebebeb; }
+.checkout-header .site-logo img { filter: none; transform: scale(1.6); transform-origin: left center; }
+.checkout-header .desktop-navigation { position: absolute; left: 50%; transform: translateX(-50%); gap: 36px; margin: 0; }
+.checkout-header .desktop-navigation a { font-size: 12px; font-weight: 650; letter-spacing: 0; }
+.checkout-header .header-actions { margin-left: auto; }
+.checkout-header .header-count { background: #111; color: #fff; }
+.checkout-header .mobile-navigation { background: #fff; }
+.checkout-header .mobile-navigation a { border-color: #e5e5e5; }
+.checkout-header :focus-visible { outline-color: #555; }
+.checkout-header a:hover { color: #666; }
+.checkout-header .menu-trigger { border-color: #ddd; background: #fff; color: #111; }
+@media (max-width: 1099px) {
+  .header-actions { margin-left: auto; gap: 12px; }
+  .site-header .menu-trigger { margin-left: 8px; }
+}
+@media (max-width: 540px) { .header-actions { gap: 8px; } }
+
+@media (min-width: 1100px) {
+  .site-header .desktop-navigation { position: absolute; left: 50%; transform: translateX(-50%); justify-content: center; margin: 0; gap: clamp(24px, 2.2vw, 40px); }
+  .site-header .header-actions { margin-left: auto; }
 }

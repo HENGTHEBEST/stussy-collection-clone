@@ -16,6 +16,8 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@countrystatecity/countries": "^3.0.1",
+    "@supabase/supabase-js": "^2.119.0",
     "bakong-khqr": "1.0.20",
     "express": "^5.3.0",
     "framer-motion": "^14.10.1",

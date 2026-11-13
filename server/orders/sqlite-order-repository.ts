@@ -59,14 +59,16 @@ export class SqliteOrderRepository implements OrderRepository {
         md5 TEXT NOT NULL,
         transaction_hash TEXT
       ) STRICT;
+      CREATE UNIQUE INDEX IF NOT EXISTS payment_provider_reference
+        ON payment_attempts(provider_reference);
       CREATE UNIQUE INDEX IF NOT EXISTS payment_transaction_hash
         ON payment_attempts(transaction_hash) WHERE transaction_hash IS NOT NULL;
     `);
   }
 
-  createOrder(input: CreateStoredOrderInput): StoredOrder {
+  async createOrder(input: CreateStoredOrderInput): Promise<StoredOrder> {
     return this.transaction(() => {
-      const existing = this.findByRequestId(input.requestId);
+      const existing = this.readByRequestId(input.requestId);
       if (existing) return existing;
 
       this.database.prepare(`
@@ -95,11 +97,15 @@ export class SqliteOrderRepository implements OrderRepository {
       `).run(input.id, payment.status, payment.qrDataUrl, payment.expiresAt,
         payment.providerReference, payment.qrPayload, payment.md5, payment.transactionHash);
 
-      return this.findById(input.id)!;
+      return this.readById(input.id)!;
     });
   }
 
-  findById(id: string): StoredOrder | null {
+  async findById(id: string): Promise<StoredOrder | null> {
+    return this.readById(id);
+  }
+
+  private readById(id: string): StoredOrder | null {
     const row = this.database.prepare(`
       SELECT orders.id, request_id AS requestId, orders.status, created_at AS createdAt, updated_at AS updatedAt,
         customer_json AS customerJson, address_json AS addressJson, delivery,
@@ -127,14 +133,23 @@ export class SqliteOrderRepository implements OrderRepository {
     };
   }
 
-  findByRequestId(requestId: string): StoredOrder | null {
-    const row = this.database.prepare('SELECT id FROM orders WHERE request_id = ?').get(requestId);
-    return row ? this.findById(row.id as string) : null;
+  async findByRequestId(requestId: string): Promise<StoredOrder | null> {
+    return this.readByRequestId(requestId);
   }
 
-  markPaid(id: string, transactionHash: string, updatedAt: string): boolean {
+  private readByRequestId(requestId: string): StoredOrder | null {
+    const row = this.database.prepare('SELECT id FROM orders WHERE request_id = ?').get(requestId);
+    return row ? this.readById(row.id as string) : null;
+  }
+
+  async findByProviderReference(providerReference: string): Promise<StoredOrder | null> {
+    const row = this.database.prepare('SELECT order_id FROM payment_attempts WHERE provider_reference = ?').get(providerReference);
+    return row ? this.readById(row.order_id as string) : null;
+  }
+
+  async markPaid(id: string, transactionHash: string, updatedAt: string): Promise<boolean> {
     return this.transaction(() => {
-      const order = this.findById(id);
+      const order = this.readById(id);
       if (!order) return false;
       if (order.status === 'paid') return order.payment.transactionHash === transactionHash;
       const result = this.database.prepare(`
@@ -150,21 +165,21 @@ export class SqliteOrderRepository implements OrderRepository {
     });
   }
 
-  markFailed(id: string, updatedAt: string): boolean {
+  async markFailed(id: string, updatedAt: string): Promise<boolean> {
     return this.markUnpaid(id, 'failed', updatedAt);
   }
 
-  markExpired(id: string, updatedAt: string): boolean {
+  async markExpired(id: string, updatedAt: string): Promise<boolean> {
     return this.markUnpaid(id, 'expired', updatedAt);
   }
 
-  close(): void {
+  async close(): Promise<void> {
     if (this.database.isOpen) this.database.close();
   }
 
   private markUnpaid(id: string, status: 'failed' | 'expired', updatedAt: string): boolean {
     return this.transaction(() => {
-      const order = this.findById(id);
+      const order = this.readById(id);
       if (!order) return false;
       if (order.status === 'paid') throw new Error('Cannot change a paid order.');
       if (order.status === status) return true;

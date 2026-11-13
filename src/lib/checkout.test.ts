@@ -9,13 +9,14 @@ const fields: CheckoutFields = {
 };
 
 describe('checkout validation', () => {
-  it('requires every contact, address, and delivery field', () => {
-    for (const key of Object.keys(fields) as (keyof CheckoutFields)[]) {
+  it('requires contact, street, city, country, and delivery', () => {
+    for (const key of ['name', 'email', 'phone', 'street', 'city', 'country', 'delivery'] as (keyof CheckoutFields)[]) {
       expect(validateCheckout({ ...fields, [key]: ' ' })[key], key).toBeTruthy();
     }
   });
   it('accepts valid contact information for either delivery option', () => {
     expect(validateCheckout(fields)).toEqual({});
+    expect(validateCheckout({ ...fields, region: '', postalCode: '' })).toEqual({});
     expect(validateCheckout({ ...fields, delivery: 'express' })).toEqual({});
   });
   it('rejects malformed email, short phone, and unsupported delivery', () => {

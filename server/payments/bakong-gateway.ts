@@ -11,7 +11,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+export class BakongVerificationLimitError extends Error {
+  constructor() { super('Bank verification is temporarily unavailable because the daily verification limit was reached. If you already paid, do not pay again. Keep your order ID and retry verification later or contact the shop.'); }
+}
+
 export class BakongGateway implements PaymentGateway {
+  private verificationBlockedUntil = 0;
+  // shortcut: request coalescing is process-local; use a shared cache for multiple API instances.
+  private checks = new Map<string, { until: number; result: Promise<GatewayCheckResult> }>();
   constructor(
     private readonly credentials: BakongCredentials,
     private readonly fetcher: typeof fetch = fetch,
@@ -46,7 +53,7 @@ export class BakongGateway implements PaymentGateway {
       return {
         providerReference: generated.data.md5,
         qrPayload: generated.data.qr,
-        qrDataUrl: await QRCode.toDataURL(generated.data.qr, { errorCorrectionLevel: 'M', margin: 4, width: 640 }),
+        qrDataUrl: await QRCode.toDataURL(generated.data.qr, { errorCorrectionLevel: 'H', margin: 4, width: 640 }),
         md5: generated.data.md5,
         expiresAt: order.expiresAt,
         status: 'pending',
@@ -56,7 +63,19 @@ export class BakongGateway implements PaymentGateway {
     }
   }
 
-  async checkPayment(input: GatewayCheckInput): Promise<GatewayCheckResult> {
+  checkPayment(input: GatewayCheckInput): Promise<GatewayCheckResult> {
+    const now = this.now().getTime();
+    const key = JSON.stringify(input);
+    const cached = this.checks.get(key);
+    if (cached && cached.until > now) return cached.result;
+    for (const [id, check] of this.checks) if (check.until <= now) this.checks.delete(id);
+    const result = this.verifyPayment(input);
+    this.checks.set(key, { until: now + 30000, result });
+    return result;
+  }
+
+  private async verifyPayment(input: GatewayCheckInput): Promise<GatewayCheckResult> {
+    if (this.now().getTime() < this.verificationBlockedUntil) throw new BakongVerificationLimitError();
     let providerResponse: Response;
     try {
       providerResponse = await this.fetcher(this.credentials.apiBaseUrl + '/v1/check_transaction_by_md5', {
@@ -78,12 +97,18 @@ export class BakongGateway implements PaymentGateway {
     }
     if (!isRecord(body)) throw new Error('Invalid Bakong response.');
 
+    if (body.responseCode === 1 && body.errorCode === 17) {
+      // shortcut: cooldown is process-local; use a shared limiter if deploying multiple API instances.
+      this.verificationBlockedUntil = this.now().getTime() + 60_000;
+      throw new BakongVerificationLimitError();
+    }
     if (body.responseCode === 1) {
       if (body.data !== null) throw new Error('Invalid Bakong response.');
-      if (typeof body.responseMessage === 'string'
-        && body.responseMessage.trim().toLowerCase() === 'transaction failed.') {
+      if (body.errorCode === 3 || (body.errorCode === undefined && typeof body.responseMessage === 'string'
+        && body.responseMessage.trim().toLowerCase() === 'transaction failed.')) {
         return { status: 'failed' };
       }
+      if (body.errorCode !== 1 && !(body.errorCode === undefined && typeof body.responseMessage === 'string' && body.responseMessage.trim().toLowerCase() === 'transaction not found.')) throw new Error('Bakong payment check failed.');
       return this.now().getTime() >= Date.parse(input.expiresAt)
         ? { status: 'expired' }
         : { status: 'pending' };

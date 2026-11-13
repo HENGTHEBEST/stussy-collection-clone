@@ -1,5 +1,6 @@
 // @vitest-environment node
 import sdk from 'bakong-khqr';
+import QRCode from 'qrcode';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BakongCredentials } from '../config.js';
 import { BakongGateway } from './bakong-gateway.js';
@@ -49,6 +50,15 @@ describe('BakongGateway', () => {
       merchantCity: credentials.merchantCity, transactionCurrency: '840', transactionAmount: '0.03',
       billNumber: order.orderId, expirationTimestamp: String(Date.parse(expiresAt)),
     });
+  });
+
+  it('uses high error correction for the centered payment emblem', async () => {
+    const toDataURL = vi.spyOn(QRCode, 'toDataURL');
+    const gateway = new BakongGateway(credentials, vi.fn(), () => new Date(instant));
+
+    await gateway.createPayment(order);
+
+    expect(toDataURL).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ errorCorrectionLevel: 'H' }));
   });
 
   it('fits UUID order IDs into the KHQR bill-number limit', async () => {
@@ -122,4 +132,33 @@ describe('BakongGateway', () => {
     const invalid = new BakongGateway({ ...credentials, bakongAccountId: 'secret-invalid-account' }, vi.fn(), () => new Date(instant));
     await expect(invalid.createPayment(order)).rejects.toThrow(/^Unable to generate Bakong KHQR\.$/);
   });
+});
+
+it('reports the daily quota as unavailable, backs off, and never calls it an expired payment', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => response({ responseCode: 1, errorCode: 17, responseMessage: 'Daily request limit of 100 exceeded. Please try again tomorrow.', data: null }));
+  const gateway = new BakongGateway(credentials, fetcher, () => new Date(expiresAt));
+  await expect(gateway.checkPayment(checkInput)).rejects.toThrow(/verification limit/);
+  await expect(gateway.checkPayment(checkInput)).rejects.toThrow(/verification limit/);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+it('does not treat an unknown provider error as a pending or expired payment', async () => {
+  const gateway = new BakongGateway(credentials, vi.fn<typeof fetch>().mockResolvedValue(response({ responseCode: 1, errorCode: 99, responseMessage: 'Unavailable', data: null })), () => new Date(expiresAt));
+  await expect(gateway.checkPayment(checkInput)).rejects.toThrow();
+});
+
+it('recognizes the documented not-found error code without relying on message wording', async () => {
+  const gateway = new BakongGateway(credentials, vi.fn<typeof fetch>().mockResolvedValue(response({ responseCode: 1, errorCode: 1, responseMessage: 'Transaction could not be found. Please check and try again.', data: null })), () => new Date(instant));
+  await expect(gateway.checkPayment(checkInput)).resolves.toEqual({ status: 'pending' });
+});
+
+it('deduplicates concurrent bank checks and caches pending results for 30 seconds', async () => {
+  let now = Date.parse(instant);
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => response({ responseCode: 1, errorCode: 1, data: null }));
+  const gateway = new BakongGateway(credentials, fetcher, () => new Date(now));
+  await Promise.all([gateway.checkPayment(checkInput), gateway.checkPayment(checkInput)]);
+  await gateway.checkPayment(checkInput);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  now += 30000;
+  await gateway.checkPayment(checkInput);
+  expect(fetcher).toHaveBeenCalledTimes(2);
 });

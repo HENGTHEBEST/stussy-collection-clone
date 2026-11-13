@@ -7,3 +7,4 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+window.setTimeout(() => document.getElementById('startup-loader')?.remove(), 1100);

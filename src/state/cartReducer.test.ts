@@ -4,6 +4,16 @@ import { cartLineKey, cartReducer, clampQuantity, type CartLine } from './cartRe
 const line: CartLine = { productId: 1, color: 'Black', size: 'M', quantity: 2, unitPrice: 48 };
 
 describe('cartReducer', () => {
+  it('removes only purchased quantities once and preserves later additions across reloads', () => {
+    const other = { ...line, size: 'L' as const };
+    const action = { type: 'purchase' as const, orderId: 'paid-order', lines: [{ ...line, quantity: 1 }] };
+    const paid = cartReducer({ lines: [line, other] }, action);
+    expect(paid.lines).toEqual([{ ...line, quantity: 1 }, other]);
+    const reloaded = JSON.parse(JSON.stringify(paid));
+    const added = cartReducer(reloaded, { type: 'add', line: { ...line, quantity: 2 } });
+    expect(cartReducer(added, action)).toBe(added);
+    expect(added.lines[0].quantity).toBe(3);
+  });
   it('merges identical variants while preserving the captured price', () => {
     expect(cartLineKey(line)).toBe('1:Black:M');
     expect(cartReducer({ lines: [line] }, { type: 'add', line: { ...line, unitPrice: 99 } }))

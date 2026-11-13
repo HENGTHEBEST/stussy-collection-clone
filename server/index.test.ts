@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
-import type { PublicOrder } from '../shared/commerce.js';
-import { createOrderRequest } from './test/fixtures.js';
+
+const supabaseEnv = { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-role-key' };
 
 const directories: string[] = [];
 const children: ChildProcess[] = [];
@@ -33,9 +33,9 @@ async function setup() {
 }
 function launch(directory: string, env: NodeJS.ProcessEnv) {
   const childEnv = { ...process.env };
-  for (const key of ['PAYMENT_MODE', 'API_PORT', 'APP_ORIGIN', 'SQLITE_PATH', 'BAKONG_API_BASE_URL',
-    'BAKONG_API_TOKEN', 'BAKONG_ACCOUNT_ID', 'BAKONG_MERCHANT_ID', 'BAKONG_ACQUIRING_BANK',
-    'MERCHANT_NAME', 'MERCHANT_CITY', 'TEST_UNIT_PRICE_MINOR', 'TEST_FREE_SHIPPING']) delete childEnv[key];
+  for (const key of Object.keys(childEnv)) {
+    if (/^(SUPABASE_|BAKONG_|PAYWAY_|TEST_)|^(PAYMENT_MODE|API_PORT|APP_ORIGIN|STORAGE_MODE|SQLITE_PATH|MERCHANT_NAME|MERCHANT_CITY|ORDER_CURRENCY)$/.test(key)) delete childEnv[key];
+  }
   const child = spawn(process.execPath, ['--import', pathToFileURL(resolve('node_modules/tsx/dist/loader.mjs')).href,
     resolve('server/index.ts')], { cwd: directory, env: { ...childEnv, ...env }, windowsHide: true, stdio: 'pipe' });
   children.push(child);
@@ -52,29 +52,27 @@ async function ready(url: string, child: ChildProcess) {
   }
   throw new Error('Runtime did not become ready.');
 }
-it('loads .env.local and composes durable SQLite orders across runtime restarts', async () => {
+it('loads Supabase configuration from .env.local and owns the local listener', async () => {
   const { directory, port, url } = await setup();
-  await writeFile(join(directory, '.env.local'), 'PAYMENT_MODE=mock\nAPI_PORT=' + port + '\nSQLITE_PATH=./nested/store.sqlite\n');
+  await writeFile(join(directory, '.env.local'), 'PAYMENT_MODE=mock\nAPI_PORT=' + port
+    + '\nSTORAGE_MODE=supabase\nSUPABASE_URL=https://project.supabase.co\nSUPABASE_SERVICE_ROLE_KEY=synthetic-service-role-key\n');
   const first = launch(directory, {});
   expect(await ready(url, first.child)).toEqual({ ready: true, paymentMode: 'mock' });
-  const created = await fetch(url + '/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createOrderRequest()) });
-  expect(created.status).toBe(201);
-  const order = await created.json() as PublicOrder;
-  expect((await fetch(url + '/api/orders/' + order.id + '/mock-payment', { method: 'POST' })).status).toBe(200);
+  expect(first.output()).not.toContain('synthetic-service-role-key');
   await stop(first.child);
+  await expect(fetch(url + '/api/health')).rejects.toThrow();
   const restarted = launch(directory, {});
-  await ready(url, restarted.child);
-  expect(await (await fetch(url + '/api/orders/' + order.id)).json()).toMatchObject({ id: order.id, status: 'paid' });
-  expect((await readFile(join(directory, 'nested/store.sqlite'))).subarray(0, 15).toString()).toBe('SQLite format 3');
+  expect(await ready(url, restarted.child)).toEqual({ ready: true, paymentMode: 'mock' });
+  await expect(readFile(join(directory, 'data/store.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' });
 }, 15000);
 it('starts from environment settings when .env.local is absent', async () => {
   const { directory, port, url } = await setup();
-  const runtime = launch(directory, { PAYMENT_MODE: 'mock', API_PORT: String(port), SQLITE_PATH: './data/store.sqlite' });
+  const runtime = launch(directory, { ...supabaseEnv, PAYMENT_MODE: 'mock', API_PORT: String(port) });
   expect(await ready(url, runtime.child)).toEqual({ ready: true, paymentMode: 'mock' });
 }, 10000);
 it.each(['sit', 'production'])('fails closed for incomplete %s credentials without exposing credentials', async paymentMode => {
   const { directory, port } = await setup();
-  const runtime = launch(directory, { PAYMENT_MODE: paymentMode, API_PORT: String(port), BAKONG_API_TOKEN: 'secret-token', SQLITE_PATH: './data/store.sqlite' });
+  const runtime = launch(directory, { ...supabaseEnv, PAYMENT_MODE: paymentMode, API_PORT: String(port), BAKONG_API_TOKEN: 'secret-token' });
   const code = await new Promise<number | null>(resolve => runtime.child.once('exit', resolve));
   expect(code).toBe(1);
   expect(runtime.output()).not.toMatch(/secret-token|\n\s+at /);
@@ -84,7 +82,7 @@ it.each(['sit', 'production'])('fails closed for incomplete %s credentials witho
 it.each(['sit', 'production'])('starts a configured %s runtime without contacting the provider', async paymentMode => {
   const { directory, port, url } = await setup();
   const runtime = launch(directory, {
-    PAYMENT_MODE: paymentMode, API_PORT: String(port), SQLITE_PATH: ':memory:',
+    ...supabaseEnv, PAYMENT_MODE: paymentMode, API_PORT: String(port),
     BAKONG_API_BASE_URL: 'https://api.example.test', BAKONG_API_TOKEN: 'synthetic-token',
     BAKONG_ACCOUNT_ID: 'shop@example', BAKONG_MERCHANT_ID: 'merchant-1',
     BAKONG_ACQUIRING_BANK: 'TEST BANK', MERCHANT_NAME: 'Test Shop', MERCHANT_CITY: 'PHNOM PENH',
@@ -92,4 +90,17 @@ it.each(['sit', 'production'])('starts a configured %s runtime without contactin
   });
   expect(await ready(url, runtime.child)).toEqual({ ready: true, paymentMode });
   expect(runtime.output()).not.toMatch(/synthetic-token|shop@example|merchant-1|TEST BANK/);
+}, 10000);
+
+it.each([
+  { SUPABASE_URL: undefined, SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-role-key' },
+  { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SERVICE_ROLE_KEY: undefined },
+  { ...supabaseEnv, STORAGE_MODE: 'sqlite' },
+])('fails closed for incomplete or unsupported storage configuration', async env => {
+  const { directory, port, url } = await setup();
+  const runtime = launch(directory, { ...env, PAYMENT_MODE: 'mock', API_PORT: String(port) });
+  const code = await new Promise<number | null>(resolve => runtime.child.once('exit', resolve));
+  expect(code).toBe(1);
+  expect(runtime.output()).not.toMatch(/synthetic-service-role-key|\n\s+at /);
+  await expect(fetch(url + '/api/health')).rejects.toThrow();
 }, 10000);

@@ -3,6 +3,8 @@
 node_modules/
 dist/
 coverage/
+.vercel/
+artifacts/
 .env
 .env.*
 !.env.example

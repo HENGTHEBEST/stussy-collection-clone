@@ -1,4 +1,8 @@
 import type { CheckoutPricing, CreateOrderRequest, PublicOrder } from '../../shared/commerce';
+import type { CheckoutFields } from './checkout';
+
+type AddressLocation = Pick<CheckoutFields, 'city' | 'region' | 'country'>;
+type AddressCheck = { address?: AddressLocation; errors: Partial<Record<keyof AddressLocation, string>> };
 
 const unavailable = 'The shop service is temporarily unavailable.';
 
@@ -29,6 +33,15 @@ export function createOrder(input: CreateOrderRequest): Promise<PublicOrder> {
   return requestJson('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
 }
 
+export async function checkAddress(address: AddressLocation): Promise<AddressCheck> {
+  const result = await requestJson<AddressCheck>('/api/validate-address', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(address),
+  });
+  if (!result || typeof result.errors !== 'object' || result.errors === null
+    || (!Object.keys(result.errors).length && !result.address)) throw new ApiError(unavailable, 500);
+  return result;
+}
+
 export function getOrder(orderId: string, signal?: AbortSignal): Promise<PublicOrder> {
   return requestJson('/api/orders/' + encodeURIComponent(orderId), { signal });
 }
@@ -45,5 +58,6 @@ export async function getCheckoutPricing(signal?: AbortSignal): Promise<Checkout
     || typeof pricing.freeShipping !== 'boolean') {
     throw new ApiError(unavailable, 500);
   }
-  return { unitPriceMinor: pricing.unitPriceMinor as number | null, freeShipping: pricing.freeShipping };
+  return { unitPriceMinor: pricing.unitPriceMinor as number | null, freeShipping: pricing.freeShipping,
+    ...('cardAvailable' in pricing ? { cardAvailable: pricing.cardAvailable === true } : {}) };
 }

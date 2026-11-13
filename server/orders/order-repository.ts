@@ -23,11 +23,12 @@ export interface CreateStoredOrderInput extends Omit<StoredOrder, 'id' | 'create
 }
 
 export interface OrderRepository {
-  createOrder(input: CreateStoredOrderInput): StoredOrder;
-  findById(id: string): StoredOrder | null;
-  findByRequestId(requestId: string): StoredOrder | null;
-  markPaid(id: string, transactionHash: string, updatedAt: string): boolean;
-  markFailed(id: string, updatedAt: string): boolean;
-  markExpired(id: string, updatedAt: string): boolean;
-  close(): void;
+  createOrder(input: CreateStoredOrderInput): Promise<StoredOrder>;
+  findById(id: string): Promise<StoredOrder | null>;
+  findByRequestId(requestId: string): Promise<StoredOrder | null>;
+  findByProviderReference(providerReference: string): Promise<StoredOrder | null>;
+  markPaid(id: string, transactionHash: string, updatedAt: string): Promise<boolean>;
+  markFailed(id: string, updatedAt: string): Promise<boolean>;
+  markExpired(id: string, updatedAt: string): Promise<boolean>;
+  close(): Promise<void>;
 }

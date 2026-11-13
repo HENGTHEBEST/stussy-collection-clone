@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import type { CheckoutPricing } from '../../../shared/commerce';
+import { shippingPriceMinor, type CheckoutPricing, type DeliveryMethod } from '../../../shared/commerce';
 import type { CartLine } from '../../state/cartReducer';
 
-export function calculateTotals(lines: CartLine[], pricing?: CheckoutPricing) {
+export function calculateTotals(lines: CartLine[], pricing?: CheckoutPricing, delivery: DeliveryMethod = 'standard') {
   const subtotal = lines.reduce((sum, line) => sum + (pricing?.unitPriceMinor == null ? line.unitPrice : pricing.unitPriceMinor / 100) * line.quantity, 0);
-  const shipping = pricing?.freeShipping || subtotal === 0 || subtotal >= 150 ? 0 : 12;
+  const shipping = shippingPriceMinor(Math.round(subtotal * 100), delivery, pricing?.freeShipping) / 100;
   return { subtotal, shipping, total: subtotal + shipping };
 }
 
@@ -23,6 +23,6 @@ export function OrderSummary({ lines, showCheckoutLink = true, pricing }: { line
       <dt>Total</dt><dd>{formatCurrency(total)}</dd></dl>
     {!pricing?.freeShipping && subtotal > 0 && subtotal < 150 && <p>{formatCurrency(150 - subtotal)} away from free shipping.</p>}
     <p>Estimates only. Final prices and delivery are confirmed by the shop service.</p>
-    {showCheckoutLink && (lines.length ? <Link to="/checkout">Checkout</Link> : <button type="button" disabled>Checkout</button>)}
+    {showCheckoutLink && (lines.length ? <Link className="checkout-action" to="/checkout">Proceed to checkout</Link> : <button type="button" disabled>Checkout</button>)}
   </section>;
 }

@@ -16,6 +16,7 @@
     "verbatimModuleSyntax": true
   },
   "include": [
+    "api",
     "server",
     "shared"
   ]

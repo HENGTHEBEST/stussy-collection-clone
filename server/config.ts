@@ -16,13 +16,27 @@ export interface BakongCredentials {
 export interface ServerConfig {
   port: number;
   appOrigin: string;
+  supabaseUrl: string;
   paymentMode: 'mock' | 'sit' | 'production';
   merchantName: string;
   merchantCity: string;
   bakongAccountId: string;
   currency: 'USD';
-  sqlitePath: string;
   pricing: PricingPolicy;
+  cardAvailable?: boolean;
+}
+
+export interface PayWayCredentials { merchantId: string; apiKey: string; environment: 'sandbox' | 'production' }
+
+export function loadPayWayCredentials(env: NodeJS.ProcessEnv): PayWayCredentials | null {
+  const merchantId = env.PAYWAY_MERCHANT_ID?.trim();
+  const apiKey = env.PAYWAY_API_KEY?.trim();
+  if (!merchantId && !apiKey) return null;
+  if (!merchantId || merchantId.length > 30) throw new Error('Invalid server setting: PAYWAY_MERCHANT_ID');
+  if (!apiKey || apiKey.length > 4096) throw new Error('Invalid server setting: PAYWAY_API_KEY');
+  const environment = env.PAYWAY_ENVIRONMENT?.trim() || 'sandbox';
+  if (environment !== 'sandbox' && environment !== 'production') throw new Error('Invalid server setting: PAYWAY_ENVIRONMENT');
+  return { merchantId, apiKey, environment };
 }
 
 export function loadBakongCredentials(
@@ -63,6 +77,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   if (!/^\d+$/.test(portText) || !Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('Invalid server setting: API_PORT');
   }
+  if (text('STORAGE_MODE', 'supabase') !== 'supabase') throw new Error('Invalid server setting: STORAGE_MODE');
+  const supabaseUrl = (env.SUPABASE_URL ?? '').trim();
+  if (!supabaseUrl) throw new Error('Invalid server setting: SUPABASE_URL');
+  let supabase: URL;
+  try { supabase = new URL(supabaseUrl); } catch { throw new Error('Invalid server setting: SUPABASE_URL'); }
+  if (supabase.protocol !== 'https:' || supabase.origin !== supabaseUrl) throw new Error('Invalid server setting: SUPABASE_URL');
+  const serviceRoleKey = (env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
+  if (!serviceRoleKey) throw new Error('Invalid server setting: SUPABASE_SERVICE_ROLE_KEY');
+  if (serviceRoleKey.length > 4096) throw new Error('Invalid server setting: SUPABASE_SERVICE_ROLE_KEY');
   const appOrigin = text('APP_ORIGIN', 'http://localhost:5173');
   let origin: URL;
   try { origin = new URL(appOrigin); } catch { throw new Error('Invalid server setting: APP_ORIGIN'); }
@@ -74,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     throw new Error('Invalid server setting: PAYMENT_MODE');
   }
   loadBakongCredentials(env, paymentMode);
+  const cardAvailable = Boolean(loadPayWayCredentials(env));
   const currency = text('ORDER_CURRENCY', 'USD');
   if (currency !== 'USD') throw new Error('Invalid server setting: ORDER_CURRENCY');
   const priceText = env.TEST_UNIT_PRICE_MINOR;
@@ -87,11 +111,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     throw new Error('Invalid server setting: TEST_FREE_SHIPPING');
   }
   return {
-    port, appOrigin, paymentMode, currency,
+    port, appOrigin, supabaseUrl, paymentMode, currency,
     pricing: { unitPriceMinor, freeShipping: freeShipping === 'true' },
+    ...(cardAvailable ? { cardAvailable } : {}),
     merchantName: text('MERCHANT_NAME', 'Stussy Collection Showcase'),
     merchantCity: text('MERCHANT_CITY', 'Phnom Penh'),
     bakongAccountId: paymentMode === 'mock' ? env.BAKONG_ACCOUNT_ID?.trim() || 'demo@mock' : text('BAKONG_ACCOUNT_ID', 'demo@mock'),
-    sqlitePath: text('SQLITE_PATH', './data/store.sqlite'),
   };
 }

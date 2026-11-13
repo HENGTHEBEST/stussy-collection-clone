@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { PublicOrder } from '../../shared/commerce';
 import { ApiError, getOrder, simulateMockPayment } from '../lib/api';
+import { CartProvider } from '../state/CartProvider';
 import { OrderPage } from './OrderPage';
 
 vi.mock('../lib/api', async (importOriginal) => ({ ...await importOriginal<typeof import('../lib/api')>(), getOrder: vi.fn(), simulateMockPayment: vi.fn() }));
@@ -21,11 +22,27 @@ async function settle() { await act(async () => {}); }
 function NextOrder() { const navigate = useNavigate(); return <button onClick={() => navigate('/order/order-2')}>Next order</button>; }
 function show(seed?: PublicOrder) {
   return render(<MemoryRouter initialEntries={[{ pathname: '/order/order-1', state: seed ? { order: seed } : null }]}>
-    <NextOrder /><Routes><Route path="/order/:orderId" element={<OrderPage />} /></Routes>
+    <CartProvider><NextOrder /><Routes><Route path="/order/:orderId" element={<OrderPage />} /></Routes></CartProvider>
   </MemoryRouter>);
 }
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-09T00:00:00.000Z')); get.mockReset().mockResolvedValue(order); simulate.mockReset().mockResolvedValue(paid); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-09T00:00:00.000Z')); get.mockReset().mockResolvedValue(order); simulate.mockReset().mockResolvedValue(paid); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+it.each([false, true])('copies the confirmed order ID or reports clipboard failure (%s)', async (fails) => {
+  const writeText = fails ? vi.fn().mockRejectedValue(new Error('Denied')) : vi.fn().mockResolvedValue(undefined);
+  const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+  try {
+    get.mockResolvedValue(paid); show(); await settle();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy order ID' })); await settle();
+    expect(writeText).toHaveBeenCalledWith(order.id);
+    expect(screen.getByText(fails ? 'Unable to copy. Select the order ID to copy it.' : 'Order ID copied')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'View Order Status' })).toHaveAttribute('href', '#delivery-information');
+  } finally {
+    if (original) Object.defineProperty(navigator, 'clipboard', original);
+    else Reflect.deleteProperty(navigator, 'clipboard');
+  }
+});
 
 it('renders a matching navigation seed immediately and replaces it with the API snapshot', async () => {
   const response = deferred<PublicOrder>(); get.mockReturnValue(response.promise);
@@ -35,6 +52,26 @@ it('renders a matching navigation seed immediately and replaces it with the API 
   await act(async () => response.resolve({ ...paid, lines: [{ ...paid.lines[0], name: 'Refreshed snapshot tee' }] }));
   expect(screen.getByText('Refreshed snapshot tee')).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent('Payment confirmed');
+});
+
+it('clears checkout recovery after a hosted return only when the API confirms the order is terminal', async () => {
+  const response = deferred<PublicOrder>(); get.mockReturnValue(response.promise);
+  const key = 'stussy-checkout-pending-orders-v1';
+  sessionStorage.setItem(key, JSON.stringify([order.id]));
+  show(paid);
+  expect(sessionStorage.getItem(key)).toBe(JSON.stringify([order.id]));
+  await act(async () => response.resolve(paid));
+  expect(sessionStorage.getItem(key)).toBeNull();
+  expect(screen.getByRole('status')).toHaveTextContent('Payment confirmed');
+});
+
+it.each(['paid', 'missing'])('preserves the other pending checkout ID after the final route verifies %s', async (status) => {
+  const key = 'stussy-checkout-pending-orders-v1';
+  sessionStorage.setItem(key, JSON.stringify([order.id, 'second-pending-order']));
+  if (status === 'paid') get.mockResolvedValue(paid);
+  else get.mockRejectedValue(new ApiError('Missing order', 404));
+  show(); await settle();
+  expect(JSON.parse(sessionStorage.getItem(key)!)).toEqual(['second-pending-order']);
 });
 
 it('loads a direct route without local storage and renders exact server totals and QR', async () => {
@@ -74,7 +111,7 @@ it('submits one simulation request and announces the paid confirmation', async (
   expect(simulate).toHaveBeenCalledExactlyOnceWith('order-1'); expect(button).toBeDisabled();
   await act(async () => response.resolve(paid));
   expect(screen.getByRole('status')).toHaveTextContent('Payment confirmed');
-  expect(screen.getByRole('heading', { name: 'Order confirmation' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Order Confirmed!' })).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Simulate successful payment' })).not.toBeInTheDocument();
 });
 
@@ -87,9 +124,9 @@ it('ignores an old polling result after simulation has confirmed payment', async
 
 it.each(['expired', 'failed', 'cancelled'] as const)('offers recovery for %s orders without payment confirmation', async (status) => {
   get.mockResolvedValue({ ...order, status }); show(); await settle();
-  expect(screen.getByRole('heading', { name: 'Order ' + status })).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Return to checkout' })).toHaveAttribute('href', '/checkout');
-  expect(screen.getByRole('link', { name: 'Continue shopping' })).toHaveAttribute('href', '/shop');
+  expect(screen.getByRole('heading', { name: 'Payment ' + status[0].toUpperCase() + status.slice(1) })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Retry Payment' })).toBeEnabled();
+  expect(screen.getByRole('link', { name: 'Back to Shop' })).toHaveAttribute('href', '/shop');
   expect(screen.queryByText('Payment confirmed')).not.toBeInTheDocument();
   expect(screen.queryByRole('img', { name: 'Simulated Bakong KHQR payment code' })).not.toBeInTheDocument();
   await act(async () => vi.advanceTimersByTimeAsync(10000)); expect(get).toHaveBeenCalledTimes(1);
@@ -114,6 +151,21 @@ it('does not show a simulation control for a non-mock order', async () => {
   expect(card.getByRole('img', { name: 'Bakong KHQR payment code' })).toBeVisible();
   expect(card.queryByText(/ABA|simulation/i)).not.toBeInTheDocument();
   expect(card.queryByRole('button', { name: /simulate/i })).not.toBeInTheDocument();
+});
+
+it('preserves the signed hosted card form without exposing card inputs', async () => {
+  const checkout = { action: 'https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase',
+    fields: { merchant_id: 'merchant', tran_id: 'card-order', hash: 'server-signature', payment_option: 'cards' } };
+  get.mockResolvedValue({ ...order, mockMode: false, payment: { ...order.payment, method: 'card', sandbox: true, checkout } });
+  show(); await settle();
+  expect(screen.getByText('Secure card checkout')).toBeVisible();
+  const form = screen.getByRole('button', { name: 'Pay securely with ABA PayWay' }).closest('form')!;
+  expect(form).toHaveAttribute('action', checkout.action);
+  expect(form).toHaveAttribute('method', 'post');
+  expect(form.querySelector('input[name="hash"]')).toHaveValue('server-signature');
+  expect(form.querySelectorAll('input:not([type="hidden"])')).toHaveLength(0);
+  expect(screen.queryByLabelText(/card number|cvc|cvv|expiry/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole('img', { name: /Bakong KHQR payment code/ })).not.toBeInTheDocument();
 });
 
 it('renders not-found for a 404 response', async () => {

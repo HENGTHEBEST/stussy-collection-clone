@@ -29,7 +29,7 @@ export function ShopPage() {
   };
   const clear = () => setParams({}, { replace: true });
   const results = sortProducts(filterProducts(products, filters), sort);
-  return <div className="page-shell commerce-page"><p className="eyebrow">The demo collection</p><h1>Shop</h1>
+  return <div className="page-shell commerce-page shop-page"><h1>Shop</h1>
     <p>Illustrative prices, sizes, colors, and availability. No live inventory or purchases.</p>
     <div className="shop-toolbar"><label>Search products<input type="search" value={filters.query} onChange={(event) => update({ ...filters, query: event.target.value })} /></label>
       <label>Sort products<select value={sort} onChange={(event) => update(filters, supported([event.target.value], sortModes)[0] ?? 'featured')}>

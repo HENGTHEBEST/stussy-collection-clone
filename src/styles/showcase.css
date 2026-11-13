@@ -1,3 +1,5 @@
+@font-face { font-family: 'Summer Display'; src: url('/assets/fonts/bebas-neue-400-latin.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Barlow Condensed'; src: url('/assets/fonts/barlow-condensed-300-latin.woff2') format('woff2'); font-style: normal; font-weight: 300; font-display: swap; }
 .showcase-home { overflow: clip; }
 .showcase-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .grain-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; opacity: .035; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' opacity='.8' filter='url(%23grain)'/%3E%3C/svg%3E"); }
@@ -7,10 +9,10 @@
 .hero-shade { position: absolute; inset: 0; z-index: -2; background: linear-gradient(0deg, rgb(0 0 0 / .75), transparent 45%, rgb(0 0 0 / .15)), linear-gradient(90deg, rgb(0 0 0 / .35), rgb(0 0 0 / .2)); }
 .hero-divider { position: absolute; inset: 0 auto 0 50%; width: 1px; background: rgb(255 255 255 / .2); z-index: -1; }
 .hero-content { width: 100%; padding: 3rem var(--page-gutter); text-align: center; }
-.hero-logo { width: clamp(160px, 23vw, 340px); height: auto; margin: 0 auto 1.5rem; animation: float-breathe 7s ease-in-out infinite; }
+.hero-logo { width: clamp(160px, 23vw, 340px); height: auto; margin: 0 auto 1.5rem; scale: 1.4; transform-origin: center bottom; animation: float-breathe 7s ease-in-out infinite; }
 .hero-logo, .manifesto-watermark, .motif-watermark { filter: brightness(0) invert(1); }
-.hero-est { font-size: clamp(.55rem, .9vw, .8rem); letter-spacing: .25em; margin-bottom: 1.5rem; }
-.hero-content h1 { font-size: clamp(3rem, 10.7vw, 10rem); letter-spacing: -.025em; margin: 0; line-height: .92; white-space: nowrap; overflow-wrap: normal; }
+.hero-est { position: absolute; inset: auto 0 4.5rem; font-size: clamp(.55rem, .9vw, .8rem); letter-spacing: .25em; margin-bottom: 1.5rem; }
+.hero-title { position: absolute; inset: auto 0 clamp(7.5rem, 14vh, 10rem); margin: 0; font: 400 clamp(4rem, 8vw, 9.5rem)/1 'Summer Display', 'Arial Narrow', sans-serif; letter-spacing: .15em; white-space: nowrap; overflow-wrap: normal; }
 .hero-content h1 span { display: inline-block; animation: letter-reveal .85s both; animation-delay: calc(var(--letter-index) * 45ms); }
 .hero-label { position: absolute; bottom: 3rem; font: .8rem var(--font-mono); letter-spacing: .3em; }
 .hero-him { left: var(--page-gutter); }
@@ -84,7 +86,7 @@
 @media (max-width: 767px) {
   .hero-section { min-height: 560px; }
   .hero-content { padding-inline: 1rem; }
-  .hero-content h1 { font-size: clamp(1.5rem, 9vw, 5rem); }
+  .hero-title { bottom: clamp(6.5rem, 14vh, 8rem); font-size: clamp(2rem, 9vw, 4rem); letter-spacing: .1em; }
   .hero-logo { width: 52%; max-width: 240px; }
   .hero-est { letter-spacing: .12em; font-size: .55rem; }
   .hero-label { bottom: 2.5rem; font-size: .65rem; }
@@ -118,7 +120,7 @@
   .lookbook-copy h3 { font-size: 2rem; }
   .lookbook-copy .eyebrow { font-size: .6rem; }
   .lookbook-copy > p:not(.eyebrow) { font-size: .8rem; }
-  .hero-est { font-size: .48rem; }
+  .hero-est { position: absolute; inset: auto 0 4.5rem; font-size: .48rem; }
 }
 @media (pointer: coarse) {
   .custom-cursor { display: none; }
@@ -130,6 +132,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .showcase-home *, .showcase-home *::before, .showcase-home *::after { animation: none !important; transition: none !important; }
-  .hero-images, .hero-content h1 span, .hero-logo, .hero-scroll span, .lookbook-card, .lookbook-card img, .manifesto-image, .manifesto-content h2, .motif-art { transform: none !important; opacity: 1 !important; }
+  .hero-images, .hero-title span, .hero-logo, .hero-scroll span, .lookbook-card, .lookbook-card img, .manifesto-image, .manifesto-content h2, .motif-art { transform: none !important; opacity: 1 !important; }
   .custom-cursor { display: none; }
 }

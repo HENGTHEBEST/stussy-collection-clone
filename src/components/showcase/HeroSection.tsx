@@ -41,7 +41,7 @@ export function HeroSection() {
     <div className="hero-content">
       <img className="hero-logo" src="/assets/stussy-logo.png" alt="" aria-hidden="true" />
       <p className="eyebrow hero-est">EST. 1980 — LOS ANGELES, CA USA</p>
-      <h1 aria-label="Summer Classics">{'SUMMER CLASSICS'.split('').map((letter, index) =>
+      <h1 className="hero-title" aria-label="Summer Classics">{'SUMMER CLASSICS'.split('').map((letter, index) =>
         <span aria-hidden="true" key={index} style={{ '--letter-index': index } as CSSProperties}>{letter === ' ' ? '\u00a0' : letter}</span>)}</h1>
     </div>
     <span className="hero-label hero-him">HIM</span><span className="hero-label hero-her">HER</span>

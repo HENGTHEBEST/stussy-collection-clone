@@ -1,4 +1,5 @@
 import { products } from '../../shared/catalog.js';
+import { shippingPriceMinor } from '../../shared/commerce.js';
 import type { CheckoutLineInput, DeliveryMethod, PublicOrderLine } from '../../shared/commerce.js';
 import type { PricingPolicy } from '../config.js';
 
@@ -39,7 +40,6 @@ export function priceOrder(
   });
 
   const subtotalMinor = pricedLines.reduce((sum, line) => sum + line.unitPriceMinor * line.quantity, 0);
-  const baseShipping = subtotalMinor >= 15000 ? 0 : 1200;
-  const shippingMinor = policy.freeShipping ? 0 : delivery === 'express' ? baseShipping + 800 : baseShipping;
+  const shippingMinor = shippingPriceMinor(subtotalMinor, delivery, policy.freeShipping);
   return { lines: pricedLines, subtotalMinor, shippingMinor, totalMinor: subtotalMinor + shippingMinor };
 }

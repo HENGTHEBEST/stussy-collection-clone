@@ -63,9 +63,9 @@ it('loads a server order directly at its registered route without local storage'
     payment: { status: 'paid', qrDataUrl: '', expiresAt: '2026-11-09T00:15:00.000Z', providerReference: 'mock-direct' }, mockMode: true,
   } satisfies PublicOrder);
   render(<App initialEntries={['/order/direct-order']} />);
-  expect(await screen.findByRole('heading', { name: 'Order confirmation' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Order Confirmed!' })).toBeVisible();
   expect(screen.getByText('Server snapshot tee')).toBeVisible();
-  expect(within(screen.getByRole('region', { name: 'KHQR payment' })).getByText('$108.00')).toBeVisible();
+  expect(within(screen.getByRole('region', { name: 'Payment Summary' })).getByText('$108.00')).toBeVisible();
   expect(getOrder).toHaveBeenCalledWith('direct-order', expect.any(AbortSignal));
 });
 

@@ -25,6 +25,9 @@ it('requires a size with associated error and focus, then adds the selected vari
   expect(screen.getByLabelText('Cart count')).toHaveTextContent('2');
   expect(screen.getByRole('status')).toHaveTextContent('Added 2');
   expect(screen.getByText(/Added 2/, { selector: '.product-feedback' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'View cart' })).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Dismiss cart notification' }));
+  expect(screen.queryByRole('link', { name: 'View cart' })).not.toBeInTheDocument();
   expect(JSON.parse(localStorage.getItem(CART_STORAGE_KEY)!).value.lines).toEqual([{ productId: 1, size: 'M', color: 'Black', quantity: 2, unitPrice: 48 }]);
 });
 

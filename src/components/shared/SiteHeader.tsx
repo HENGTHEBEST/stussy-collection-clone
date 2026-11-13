@@ -1,13 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Heart, ShoppingCart } from 'lucide-react';
 import { useCart } from '../../state/CartProvider';
 import { useWishlist } from '../../state/WishlistProvider';
+import { MascotGuide } from './MascotGuide';
 
 export function SiteHeader() {
   const { itemCount } = useCart();
   const { ids } = useWishlist();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLElement>(null);
@@ -65,12 +68,16 @@ export function SiteHeader() {
   }
   return <>
     <a className="skip-link" href="#main-content">Skip to content</a>
-    <header className={'site-header' + (hidden ? ' is-hidden' : '')} onFocusCapture={() => setHidden(false)}>
+    <header className={'site-header' + (/^\/(cart|checkout|order)(\/|$)/.test(location.pathname) ? ' checkout-header' : '') + (hidden ? ' is-hidden' : '')} onFocusCapture={() => setHidden(false)}>
       <Link className="site-logo" to="/" aria-label="Stussy Collection home">
         <img src="/assets/stussy-logo.png" alt="" aria-hidden="true" width="96" height="64" />
       </Link>
       <nav className="desktop-navigation" aria-label="Primary navigation">
-        {links.map(([label, to]) => <Link key={to} to={to}>{label}</Link>)}
+        {links.slice(0, 5).map(([label, to]) => <Link key={to} to={to}>{label}</Link>)}
+      </nav>
+      <nav className="header-actions" aria-label="Shopping">
+        <Link to="/wishlist" aria-label={`Wishlist (${ids.length})`} title="Wishlist"><Heart aria-hidden="true" /><span className="header-count" aria-hidden="true">{ids.length}</span></Link>
+        <Link to="/cart" aria-label={`Cart (${itemCount})`} title="Cart"><ShoppingCart aria-hidden="true" /><span className="header-count" aria-hidden="true">{itemCount}</span></Link>
       </nav>
       <button className="menu-trigger" type="button" ref={trigger} aria-expanded={open}
         aria-controls="mobile-navigation" onClick={() => open ? close() : setOpen(true)}>Menu</button>
@@ -79,5 +86,6 @@ export function SiteHeader() {
         {links.map(([label, to]) => <Link key={to} to={to} onClick={close}>{label}</Link>)}
       </nav>
     </header>
+    <MascotGuide pathname={location.pathname} open={guideOpen} onOpenChange={setGuideOpen} />
   </>;
 }

@@ -1,7 +1,9 @@
 import express from 'express';
+import { BakongVerificationLimitError } from '../payments/bakong-gateway.js';
 import type { ErrorRequestHandler } from 'express';
 import type { ServerConfig } from '../config.js';
 import { OrderPricingError } from '../catalog/order-pricing.js';
+import { verifyAddressLocation } from '../locations/address.js';
 import { OrderService, OrderValidationError } from '../orders/order-service.js';
 
 export function createApp({ service, config }: { service: OrderService; config: ServerConfig }) {
@@ -30,7 +32,14 @@ export function createApp({ service, config }: { service: OrderService; config: 
     res.json({ ready: true, paymentMode: config.paymentMode });
   });
   app.get('/api/checkout-pricing', (_req, res) => {
-    res.json(config.pricing);
+    res.json({ ...config.pricing, ...(config.cardAvailable ? { cardAvailable: true } : {}) });
+  });
+  app.post('/api/validate-address', async (req, res) => {
+    const { city, region, country } = req.body ?? {};
+    if ([city, region, country].some(value => typeof value !== 'string' || value.length > 120)) {
+      throw new OrderValidationError('Invalid delivery location.');
+    }
+    res.json(await verifyAddressLocation({ city, region, country }));
   });
   app.post('/api/orders', async (req, res) => {
     res.status(201).json(await service.createOrder(req.body));
@@ -40,6 +49,12 @@ export function createApp({ service, config }: { service: OrderService; config: 
     const order = await service.getOrder(req.params.id);
     if (!order) { notFound(res); return; }
     res.json(order);
+  });
+  app.post('/api/payway/callback', express.urlencoded({ extended: false, limit: '32kb' }), async (req, res) => {
+    const tranId = typeof req.body?.tran_id === 'string' ? req.body.tran_id : '';
+    const order = await service.reconcilePayWay('payway-' + tranId);
+    if (!order) { notFound(res); return; }
+    res.redirect(303, '/order/' + encodeURIComponent(order.id));
   });
   if (config.paymentMode === 'mock') {
     app.post('/api/orders/:id/mock-payment', async (req, res) => {
@@ -61,6 +76,9 @@ export function createApp({ service, config }: { service: OrderService; config: 
     const type = typeof error === 'object' && error !== null && 'type' in error ? error.type : undefined;
     if (error instanceof OrderValidationError || error instanceof OrderPricingError || type === 'entity.parse.failed') {
       res.status(400).json({ error: { code: 'invalid_checkout', message: 'Check the highlighted checkout information.' } });
+    } else if (error instanceof BakongVerificationLimitError) {
+      res.setHeader('Retry-After', '60');
+      res.status(429).json({ error: { code: 'verification_limit', message: error.message } });
     } else if (type === 'entity.too.large') {
       res.status(413).json({ error: { code: 'request_too_large', message: 'Checkout information is too large.' } });
     } else {

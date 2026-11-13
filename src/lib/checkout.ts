@@ -16,7 +16,7 @@ export type CheckoutErrors = Partial<Record<keyof CheckoutFields, string>>;
 
 export function validateCheckout(fields: CheckoutFields): CheckoutErrors {
   const errors: CheckoutErrors = {};
-  const required: (keyof CheckoutFields)[] = ['name', 'email', 'phone', 'street', 'city', 'region', 'postalCode', 'country', 'delivery'];
+  const required: (keyof CheckoutFields)[] = ['name', 'email', 'phone', 'street', 'city', 'country', 'delivery'];
   for (const key of required) {
     if (!fields[key].trim()) errors[key] = 'This field is required.';
   }
