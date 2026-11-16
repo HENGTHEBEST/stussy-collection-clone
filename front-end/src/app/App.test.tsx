@@ -13,12 +13,12 @@ vi.mock('../lib/api', async (importOriginal) => ({ ...await importOriginal<typeo
 beforeEach(() => { vi.mocked(getOrder).mockReset().mockRejectedValue(new ApiError('Unknown order', 404)); localStorage.clear(); vi.stubGlobal('scrollTo', vi.fn()); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); document.body.style.overflow = ''; });
 
-it('composes the complete showcase with local media and all thirteen product actions in catalog order', () => {
+it('composes the showcase and runway with all thirteen collection actions in catalog order', () => {
   render(<App initialEntries={['/']} />);
   for (const name of ['Summer Classics', 'The Lookbook', 'Escape', 'The Motifs', 'Born on the Board']) {
     expect(screen.getByRole('heading', { name })).toBeVisible();
   }
-  const sections = ['hero', 'collection', 'escape', 'motifs', 'about', 'contact'];
+  const sections = ['hero', 'collection', 'runway', 'escape', 'motifs', 'about', 'contact'];
   expect([...document.querySelectorAll('section[id], footer[id]')].map((node) => node.id)).toEqual(sections);
   expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
   const cards = within(document.getElementById('collection')!).getAllByRole('link');
@@ -34,7 +34,7 @@ it('composes the complete showcase with local media and all thirteen product act
   const hero = within(document.getElementById('hero')!);
   expect(hero.getByRole('img', { name: 'Man wearing a white Stussy script logo tee' })).toHaveAttribute('src', '/assets/hero-man.jpg');
   expect(hero.getByRole('img', { name: 'Woman wearing a black Stussy tee' })).toHaveAttribute('src', '/assets/hero-woman.jpg');
-  expect(images.every((image) => image.getAttribute('src')?.startsWith('/assets/'))).toBe(true);
+  expect(images.every((image) => image.getAttribute('src')?.startsWith(image.closest('#runway') ? 'https://reel-ref-try-the-look.vercel.app/assets/' : '/assets/'))).toBe(true);
   for (const path of ['hero-man.jpg', 'hero-woman.jpg', 'stussy-logo.png', 'manifesto.jpg', 'motif-dice.png', 'motif-8-ball.jpg', 'lookbook-8-ball-black.jpg']) {
     expect(document.querySelector(`main img[src="/assets/${path}"]`)).toBeInTheDocument();
   }
@@ -90,7 +90,7 @@ it('keeps search focus during query-only navigation', async () => {
 
 it('recovers every meaningful showcase image and hides decorative branding', () => {
   render(<App initialEntries={['/']} />);
-  const images = [...document.querySelectorAll<HTMLImageElement>('main img')];
+  const images = [...document.querySelectorAll<HTMLImageElement>('main img')].filter(image => !image.closest('#runway'));
   for (const image of images) {
     if (image.src.endsWith('stussy-logo.png')) {
       expect(image).toHaveAttribute('alt', '');
